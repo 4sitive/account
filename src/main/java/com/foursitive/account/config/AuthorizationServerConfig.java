@@ -5,13 +5,18 @@ import com.nimbusds.jose.jwk.OctetSequenceKey;
 import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+import lombok.SneakyThrows;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationServerConfigurer;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.oidc.OidcScopes;
@@ -19,10 +24,18 @@ import org.springframework.security.oauth2.server.authorization.client.InMemoryR
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
 import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.config.ProviderSettings;
+import org.springframework.security.oauth2.server.authorization.web.OAuth2AuthorizationEndpointFilter;
+import org.springframework.security.web.DefaultRedirectStrategy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.util.ReflectionUtils;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
+import java.io.IOException;
+import java.lang.reflect.Field;
 import java.math.BigInteger;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -35,24 +48,47 @@ import java.security.spec.ECPoint;
 import java.security.spec.EllipticCurve;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Configuration(proxyBeanMethods = false)
-public class AuthorizationServerConfig {
-    @Bean
-    @Order(Ordered.HIGHEST_PRECEDENCE)
-    public SecurityFilterChain authorizationServerSecurityFilterChain(HttpSecurity http) throws Exception {
+@Order(Ordered.HIGHEST_PRECEDENCE)
+public class AuthorizationServerConfig extends WebSecurityConfigurerAdapter {
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
         OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
-        return http.formLogin(Customizer.withDefaults()).build();
+        http.formLogin(Customizer.withDefaults());
+        http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
+                .addObjectPostProcessor(new ObjectPostProcessor<Object>() {
+                    @Override
+                    public Object postProcess(Object object) {
+                        if (object instanceof OAuth2AuthorizationEndpointFilter) {
+                            Field field = ReflectionUtils.findField(OAuth2AuthorizationEndpointFilter.class, "redirectStrategy");
+                            ReflectionUtils.makeAccessible(field);
+                            ReflectionUtils.setField(field, object, new DefaultRedirectStrategy() {
+                                @SneakyThrows
+                                @Override
+                                public void sendRedirect(HttpServletRequest request, HttpServletResponse response, String url) throws IOException {
+                                    Optional.ofNullable(request.getSession(false)).ifPresent(HttpSession::invalidate);
+                                    SecurityContextHolder.getContext().setAuthentication(null);
+                                    SecurityContextHolder.clearContext();
+                                    super.sendRedirect(request, response, url);
+                                }
+                            });
+                        }
+                        return object;
+                    }
+                });
     }
 
     // @formatter:off
     @Bean
     public RegisteredClientRepository registeredClientRepository() {
         RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
-                .clientId("messaging-client")
+                .clientId("4sitive")
                 .clientSecret("secret")
                 .clientAuthenticationMethod(ClientAuthenticationMethod.BASIC)
+                .clientAuthenticationMethod(ClientAuthenticationMethod.POST)
                 .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                 .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
                 .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
@@ -61,7 +97,7 @@ public class AuthorizationServerConfig {
                 .scope(OidcScopes.OPENID)
                 .scope("message.read")
                 .scope("message.write")
-                .clientSettings(clientSettings -> clientSettings.requireUserConsent(true))
+//                .clientSettings(clientSettings -> clientSettings.requireUserConsent(true))
                 .build();
         return new InMemoryRegisteredClientRepository(registeredClient);
     }
