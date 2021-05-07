@@ -1,10 +1,10 @@
-package com.befour.account;
+package com.foursitive.account;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class AccountApplicationTests {
+class ApplicationTests {
 
     @Test
     void contextLoads() {
