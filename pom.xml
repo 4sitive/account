@@ -91,6 +91,12 @@
             <artifactId>mysql</artifactId>
             <optional>true</optional>
         </dependency>
+
+        <dependency>
+            <groupId>org.springframework.security.experimental</groupId>
+            <artifactId>spring-security-oauth2-authorization-server</artifactId>
+            <version>0.1.0</version>
+        </dependency>
     </dependencies>
     <dependencyManagement>
         <dependencies>

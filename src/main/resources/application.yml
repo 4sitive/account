@@ -1,3 +1,4 @@
+
 spring:
   profiles:
     group:
@@ -11,6 +12,7 @@ spring:
             token-uri: https://kauth.kakao.com/oauth/token
             user-info-uri: https://kapi.kakao.com/v2/user/me
             user-info-authentication-method: post
+            user-name-attribute: id
         registration:
           'KAKAO':
             client-name: '카카오 로그인'
@@ -18,3 +20,4 @@ spring:
             client-secret: 1gqtgi2kT0tahZn914nC5rG5f3SDmb5r
             authorization-grant-type: authorization_code
             redirect-uri: '{baseUrl}/{action}/oauth2/code/{registrationId}'
+            client-authentication-method: post
