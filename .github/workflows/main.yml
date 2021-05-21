@@ -21,6 +21,8 @@ jobs:
     runs-on: [ self-hosted ]
     steps:
       - name: Deploy with Docker
+        env:
+          KEY: ${{secrets.KEY}}
         run: |
           docker ps -q --filter "name=account" | grep -q . && docker stop account && docker rm -fv account
-          docker run -d -p 18080:8080 -p 18081:8081 --name account --restart always ghcr.io/4sitive/account
+          docker run -e AUTHORIZATIONSERVERSECURITY_KEY=$KEY -d -p 18080:8080 -p 18081:8081 --name account --restart always ghcr.io/4sitive/account
