@@ -12,13 +12,16 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
 import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationServerConfigurer;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -31,7 +34,10 @@ import org.springframework.security.oauth2.server.authorization.client.Registere
 import org.springframework.security.oauth2.server.authorization.config.ProviderSettings;
 import org.springframework.security.oauth2.server.authorization.web.OAuth2AuthorizationEndpointFilter;
 import org.springframework.security.web.DefaultRedirectStrategy;
+import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.util.ReflectionUtils;
+import org.springframework.util.StringUtils;
+import org.springframework.web.bind.ServletRequestUtils;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -46,14 +52,18 @@ import java.util.UUID;
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @ConfigurationProperties("authorization-server-security")
 public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdapter {
+    private final ClientRegistrationRepository clientRegistrationRepository;
     @Getter
     @Setter
     private String key = UUID.randomUUID().toString();
 
+    public AuthorizationServerSecurityConfig(ClientRegistrationRepository clientRegistrationRepository) {
+        this.clientRegistrationRepository = clientRegistrationRepository;
+    }
+
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
-        http.formLogin(Customizer.withDefaults());
         http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
                 .addObjectPostProcessor(new ObjectPostProcessor<Object>() {
                     @Override
@@ -75,6 +85,27 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
                         return object;
                     }
                 });
+        http.formLogin(customizer -> customizer.addObjectPostProcessor(new ObjectPostProcessor<Object>() {
+            @Override
+            public Object postProcess(Object object) {
+                if (object instanceof LoginUrlAuthenticationEntryPoint) {
+                    String loginFormUrl = ((LoginUrlAuthenticationEntryPoint) object).getLoginFormUrl();
+                    return new LoginUrlAuthenticationEntryPoint(loginFormUrl) {
+                        @Override
+                        protected String determineUrlToUseForThisRequest(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) {
+                            String queryString = StringUtils.hasText(request.getQueryString()) ? "?" + request.getQueryString() : "";
+                            String registration_hint = ServletRequestUtils.getStringParameter(request, "registration_hint", null);
+                            return Optional.ofNullable(registration_hint)
+                                    .filter(StringUtils::hasText)
+                                    .map(registrationId -> clientRegistrationRepository.findByRegistrationId(registrationId.toUpperCase()))
+                                    .map(registration -> OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI + "/" + registration.getRegistrationId() + queryString)
+                                    .orElseGet(() -> super.determineUrlToUseForThisRequest(request, response, exception));
+                        }
+                    };
+                }
+                return object;
+            }
+        }));
     }
 
     // @formatter:off
