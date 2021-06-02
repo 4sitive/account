@@ -27,4 +27,8 @@ jobs:
           PUBLICKEY: ${{secrets.PUBLIC_KEY}}
         run: |
           docker ps -q --filter "name=account" | grep -q . && docker stop account && docker rm -fv account
-          docker run -e AUTHORIZATIONSERVERSECURITY_KEY='$KEY' -e AUTHORIZATIONSERVERSECURITY_PRIVATEKEY='$PRIVATEKEY' -e AUTHORIZATIONSERVERSECURITY_PUBLICKEY='$PUBLICKEY' -d -p 18080:8080 -p 18081:8081 --name account --restart always ghcr.io/4sitive/account
+          docker run \
+            -e AUTHORIZATIONSERVERSECURITY_KEY="${{secrets.KEY}}" \
+            -e AUTHORIZATIONSERVERSECURITY_PRIVATEKEY="${{secrets.PRIVATE_KEY}}" \
+            -e AUTHORIZATIONSERVERSECURITY_PUBLICKEY="${{secrets.PUBLIC_KEY}}" \
+            -d -p 18080:8080 -p 18081:8081 --name account --restart always ghcr.io/4sitive/account
