@@ -1,3 +1,4 @@
+
 spring:
   application:
     name: account
@@ -28,6 +29,9 @@ spring:
             authorization-grant-type: authorization_code
             redirect-uri: '{baseUrl}/{action}/oauth2/code/{registrationId}'
             client-authentication-method: post
+            scope:
+              - https://www.googleapis.com/auth/userinfo.profile
+              - https://www.googleapis.com/auth/userinfo.email
           'KAKAO':
             client-name: '카카오 로그인'
             client-id: 345b0cf914e6e65cff98a07215b6a244
@@ -39,3 +43,4 @@ spring:
     import: optional:classpath:security.yml
 server:
   forward-headers-strategy: framework
+#openssl rsa -in private.pem -pubout -out public.pem
