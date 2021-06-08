@@ -1,4 +1,4 @@
-package com.foursitive.account.config;
+package com.f4sitive.account.config;
 
 import com.nimbusds.jose.jwk.*;
 import com.nimbusds.jose.jwk.source.JWKSource;
