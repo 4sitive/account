@@ -1,0 +1,31 @@
+version: '3.7'
+services:
+  account:
+    image: ghcr.io/4sitive/account:latest
+    restart: always
+    container_name: account
+    hostname: account
+    network_mode: bridge
+    environment:
+      JAVA_OPTS: >-
+        -Xmx512m
+        -Xms512m
+        -Dfile.encoding=UTF-8
+        -Dcrypto.policy=unlimited
+        -Dsun.net.inetaddr.ttl=0
+        -Dsun.net.inetaddr.negative.ttl=0
+        -Djava.net.preferIPv4Stack=true
+        -Djava.security.egd=file:/dev/./urandom
+        -Duser.country=KR
+        -Duser.language=ko
+        -Duser.timezone=Asia/Seoul
+      SPRING_PROFILES_ACTIVE: LOGING_FILE,LOGGING_CONSOLE_JSON
+      LOG_PATH: /workspace/log
+      SERVER_PORT: 18080
+      MANAGEMENT_SERVER_PORT: 18081
+      AUTHORIZATIONSERVERSECURITY_KEY: $KEY
+      AUTHORIZATIONSERVERSECURITY_PRIVATEKEY: $PRIVATEKEY
+      AUTHORIZATIONSERVERSECURITY_PUBLICKEY: $PUBLICKEY
+    ports:
+      - "18080:18080"
+      - "18081:18081"

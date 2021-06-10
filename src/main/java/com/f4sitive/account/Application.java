@@ -1,4 +1,4 @@
-package com.foursitive.account;
+package com.f4sitive.account;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

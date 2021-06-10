@@ -1,10 +1,9 @@
-
 spring:
   application:
     name: account
   profiles:
     group:
-      default: test
+      default: LOGGING_CONSOLE
   security:
     oauth2:
       client:

@@ -1,4 +1,4 @@
-package com.foursitive.account;
+package com.f4sitive.account;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
