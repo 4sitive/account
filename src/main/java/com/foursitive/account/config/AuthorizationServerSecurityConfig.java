@@ -144,17 +144,11 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
     public JWKSource<SecurityContext> jwkSource() {
         List<JWK> keys = new ArrayList<>();
         keys.add(new OctetSequenceKey.Builder(key.getBytes())
-                .keyID("sig")
-                .keyUse(KeyUse.SIGNATURE)
+                .keyID("enc")
                 .build());
         Optional.ofNullable(publicKey)
-                .map(key -> {
-                    RSAKey.Builder builder = new RSAKey.Builder(key)
-                            .keyID("enc")
-                            .keyUse(KeyUse.ENCRYPTION);
-                    Optional.ofNullable(privateKey).ifPresent(builder::privateKey);
-                    return builder.build();
-                })
+                .map(RSAKey.Builder::new)
+                .map(builder -> Optional.ofNullable(privateKey).map(builder::privateKey).orElse(builder).keyID("sig").build())
                 .ifPresent(keys::add);
         JWKSet jwkSet = new JWKSet(keys);
         return (jwkSelector, securityContext) -> jwkSelector.select(jwkSet);
