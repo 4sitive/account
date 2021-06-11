@@ -1,6 +1,7 @@
 package com.f4sitive.account.entity;
 
 import com.f4sitive.account.converter.StringSetToCommaDelimitedStringConverter;
+import com.f4sitive.account.converter.StringSetToWhiteSpaceDelimitedStringConverter;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -10,50 +11,50 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.domain.Auditable;
-import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import javax.persistence.*;
 import java.io.Serializable;
-import java.time.Instant;
-import java.util.*;
+import java.time.ZonedDateTime;
+import java.util.LinkedHashSet;
+import java.util.Optional;
+import java.util.Set;
 
-@EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
 @Entity
 @NoArgsConstructor
-@Table(name = "USER")
-public class User implements Auditable<String, String, Instant>, Serializable {
-    private static final long serialVersionUID = 1L;
+@Table(name = "CLIENT")
+public class Client implements Auditable<String, String, ZonedDateTime>, Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY, generator = "generator")
     @GenericGenerator(name = "generator", strategy = "uuid2")
     @Column(name = "ID", length = 36)
     private String id;
 
-    @Convert(converter = StringSetToCommaDelimitedStringConverter.class)
-    @Column(name = "AUTHORITIES")
-    private Set<String> authorities = new LinkedHashSet<>();
+    @Column(name = "CLIENT_ID")
+    private String clientId;
 
-    @Column(name = "NAME", length = 200)
+    @Column(name = "CLIENT_SECRET")
+    private String clientSecret;
+
+    @Column(name = "NAME")
     private String name;
 
-    @Column(name = "DISPLAY_NAME", length = 200)
-    private String displayName;
+    @Convert(converter = StringSetToCommaDelimitedStringConverter.class)
+    @Column(name = "CLIENT_AUTHENTICATION_METHODS")
+    private Set<String> clientAuthenticationMethods = new LinkedHashSet<>();
 
-    @Column(name = "PASSWORD")
-    @Lob
-    private String password;
+    @Convert(converter = StringSetToWhiteSpaceDelimitedStringConverter.class)
+    @Column(name = "SCOPES")
+    private Set<String> scopes = new LinkedHashSet<>();
 
-    @Column(name = "USERNAME", length = 200)
-    private String username;
+    @Convert(converter = StringSetToCommaDelimitedStringConverter.class)
+    @Column(name = "AUTHORIZATION_GRANT_TYPES")
+    private Set<String> authorizationGrantTypes = new LinkedHashSet<>();
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @JoinTable(name = "USER_ATTRIBUTE", joinColumns = @JoinColumn(name = "USER_ID", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)))
-    @MapKeyColumn(name = "KEY", length = 45)
-    @Lob
-    @Column(name = "VALUE", nullable = false, updatable = false)
-    private Map<String, String> attribute = new HashMap<>();
+    @Convert(converter = StringSetToCommaDelimitedStringConverter.class)
+    @Column(name = "REDIRECT_URIS")
+    private Set<String> redirectUris = new LinkedHashSet<>();
 
     @Version
     @Column(name = "VERSION")
@@ -69,11 +70,11 @@ public class User implements Auditable<String, String, Instant>, Serializable {
 
     @CreatedDate
     @Column(name = "CREATED_DATE")
-    private Instant createdDate;
+    private ZonedDateTime createdDate;
 
     @LastModifiedDate
     @Column(name = "LAST_MODIFIED_DATE")
-    private Instant lastModifiedDate;
+    private ZonedDateTime lastModifiedDate;
 
     @Override
     public Optional<String> getCreatedBy() {
@@ -81,7 +82,7 @@ public class User implements Auditable<String, String, Instant>, Serializable {
     }
 
     @Override
-    public Optional<Instant> getCreatedDate() {
+    public Optional<ZonedDateTime> getCreatedDate() {
         return Optional.ofNullable(createdDate);
     }
 
@@ -91,7 +92,7 @@ public class User implements Auditable<String, String, Instant>, Serializable {
     }
 
     @Override
-    public Optional<Instant> getLastModifiedDate() {
+    public Optional<ZonedDateTime> getLastModifiedDate() {
         return Optional.ofNullable(lastModifiedDate);
     }
 
