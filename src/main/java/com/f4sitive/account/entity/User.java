@@ -52,7 +52,7 @@ public class User implements Auditable<String, String, Instant>, Serializable {
     @JoinTable(name = "USER_ATTRIBUTE", joinColumns = @JoinColumn(name = "USER_ID", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)))
     @MapKeyColumn(name = "KEY", length = 45)
     @Lob
-    @Column(name = "VALUE", nullable = false, updatable = false)
+    @Column(name = "VALUE", nullable = false)
     private Map<String, String> attribute = new HashMap<>();
 
     @Version

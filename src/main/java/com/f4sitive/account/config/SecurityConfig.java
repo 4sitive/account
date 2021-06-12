@@ -33,7 +33,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             protected String determineTargetUrl(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
                 if (authentication instanceof OAuth2AuthenticationToken) {
                     String registrationId = ((OAuth2AuthenticationToken) authentication).getAuthorizedClientRegistrationId();
-                    return "/login/oauth2/confirm/" + registrationId;
+                    return "/login/oauth2/success/" + registrationId;
                 }
                 return super.determineTargetUrl(request, response, authentication);
             }

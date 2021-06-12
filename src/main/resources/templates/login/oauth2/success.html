@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <title></title>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0, minimum-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta property="og:title" content="" />
+    <meta property="og:image" content="" />
+    <meta content="" name="description" />
+    <meta content="" name="author" />
+    <meta name="format-detection" content="telephone=yes"/>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js" integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdn.sktnugu.com/css/login_oauth2_success.css">
+</head>
+
+<body>
+<div id="list">
+    <div class="inner open_inner">
+        <form id="form" th:action="@{''(lang=ko)}" th:method="post">
+        <div class="">
+            <span class="">제목 정도?</span>
+        </div>
+
+        <div class="">
+            <div class="">
+            </div>
+            <div class="">
+                설명 정도?
+            </div>
+        </div>
+
+        <div>
+                <ul class="">
+                    <li class="">
+                        <input value="true" type="hidden">
+                        <div class="" data-termsid="111">
+                            <input type="checkbox" class="" id="check" name="" value="true">
+                            <label class="" for="check"></label>
+                            <span class="">약관 제목??</span>
+                            <div>
+                                <span class=""><em class="">약관 상세??</em></span>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+        </div>
+        <div class="">
+            <div class="" id="submit">
+                <button type="button" class="">다음</button>
+            </div>
+        </div>
+        </form>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    $(document).ready(function () {
+        window.onhashchange = function(e) {
+            console.log(e);
+        };
+        $("#submit").click(function() {
+            $("#form").submit();
+        });
+    });
+</script>
+</body>
+
+</html>
