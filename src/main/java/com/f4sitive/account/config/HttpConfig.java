@@ -15,15 +15,26 @@ import org.apache.http.impl.execchain.ClientExecChain;
 import org.apache.http.protocol.HttpContext;
 import org.apache.http.ssl.SSLContextBuilder;
 import org.apache.http.util.EntityUtils;
+import org.eclipse.jetty.client.HttpClient;
+import org.eclipse.jetty.client.HttpProxy;
+import org.eclipse.jetty.client.Origin;
+import org.eclipse.jetty.client.api.Request;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.io.buffer.DefaultDataBufferFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.util.StreamUtils;
 
+import java.io.InputStream;
+import java.net.InetAddress;
 import java.net.ProxySelector;
+import java.net.URI;
+import java.net.UnknownHostException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
@@ -32,7 +43,10 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Configuration(proxyBeanMethods = false)
 @ConfigurationProperties("http")
@@ -49,7 +63,9 @@ public class HttpConfig {
     @Setter
     private Duration lifeTime = Duration.ofMinutes(30L);
     @Setter
-    private Duration acquireTimeout = Duration.ofSeconds(0L);
+    private Duration acquireTimeout = Duration.ofSeconds(2L);
+    @Setter
+    private Duration queryTimeout = Duration.ofSeconds(2L);
     @Setter
     private long threshold;
 
@@ -107,7 +123,12 @@ public class HttpConfig {
                             .create()
                             .loadTrustMaterial((TrustStrategy) (chain, authType) -> true)
                             .build())
-                    .setDefaultRequestConfig(RequestConfig.custom().setConnectTimeout((int) connectTimeout.toMillis()).setConnectionRequestTimeout((int) acquireTimeout.toMillis()).setSocketTimeout((int) readTimeout.toMillis()).build())
+                    .setDefaultRequestConfig(RequestConfig
+                            .custom()
+                            .setConnectTimeout((int) connectTimeout.toMillis())
+                            .setSocketTimeout((int) readTimeout.toMillis())
+                            .setConnectionRequestTimeout((int) acquireTimeout.toMillis())
+                            .build())
                     .setSSLHostnameVerifier((hostname, session) -> true)
                     .setMaxConnTotal(1000)
                     .setMaxConnPerRoute(100)
@@ -122,6 +143,32 @@ public class HttpConfig {
                         }
                     })
                     .useSystemProperties()
+                    .setDnsResolver(host -> {
+                        try {
+                            return CompletableFuture.supplyAsync(() -> {
+                                try {
+                                    return InetAddress.getAllByName(host);
+                                } catch (UnknownHostException e) {
+                                    throw new RuntimeException(e);
+                                }
+                            }).get(queryTimeout.toMillis(), TimeUnit.MILLISECONDS);
+                        } catch (InterruptedException | TimeoutException e) {
+                            UnknownHostException exception = new UnknownHostException(e instanceof TimeoutException ? "DNS timeout " + queryTimeout.toMillis() + " ms" : e.getMessage());
+                            exception.setStackTrace(e.getStackTrace());
+                            exception.initCause(e);
+                            throw exception;
+                        } catch (ExecutionException e) {
+                            throw Optional.ofNullable(e.getCause())
+                                    .filter(throwable -> throwable.getCause() instanceof UnknownHostException)
+                                    .map(throwable -> (UnknownHostException) throwable.getCause())
+                                    .orElseGet(() -> {
+                                        UnknownHostException exception = new UnknownHostException("Search domain query failed. Original hostname: '" + host + "' ");
+                                        exception.setStackTrace(e.getStackTrace());
+                                        exception.initCause(e.getCause());
+                                        return exception;
+                                    });
+                        }
+                    })
                     .disableRedirectHandling()
                     .disableAutomaticRetries()
                     .evictIdleConnections(idleTimeout.toMillis(), TimeUnit.MILLISECONDS)
@@ -142,6 +189,73 @@ public class HttpConfig {
         } catch (NoSuchAlgorithmException | KeyManagementException | KeyStoreException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Bean
+    public HttpClient reactiveHttpClient() {
+        HttpClient httpClient = new HttpClient(new SslContextFactory.Client(true)) {
+            @Override
+            public Request newRequest(URI uri) {
+                Request newRequest = super.newRequest(uri);
+                newRequest.attribute("elapsed_time", System.nanoTime());
+                newRequest.onRequestContent((request, content) -> {
+                    try (InputStream inputStream = DefaultDataBufferFactory.sharedInstance.wrap(content.asReadOnlyBuffer()).asInputStream()) {
+                        request.attribute("request_content", new String(StreamUtils.copyToByteArray(inputStream)));
+                    } catch (Exception e) {
+                        log.error(e.getMessage(), e);
+                    }
+                });
+                newRequest.onResponseContent((response, content) -> {
+                    try (InputStream inputStream = DefaultDataBufferFactory.sharedInstance.wrap(content.asReadOnlyBuffer()).asInputStream()) {
+                        response.getRequest().attribute("response_content", new String(StreamUtils.copyToByteArray(inputStream)));
+                    } catch (Exception e) {
+                        log.error(e.getMessage(), e);
+                    }
+                });
+                newRequest.onComplete(complete -> {
+                    long elapsedTime = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - (long) complete.getRequest().getAttributes().get("elapsed_time"));
+                    int statusCode = complete.getResponse().getStatus();
+                    if (threshold <= elapsedTime || complete.getFailure() != null || Optional.ofNullable(HttpStatus.resolve(statusCode)).map(HttpStatus::isError).orElse(true)) {
+                        StringBuilder requestContent = Optional.ofNullable((String) complete.getRequest().getAttributes().get("request_content"))
+                                .orElseGet(String::new)
+                                .codePoints()
+                                .limit(2048)
+                                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append);
+                        HttpHeaders requestHeaders = complete.getRequest().getHeaders().stream().collect(HttpHeaders::new, (headers, httpField) -> headers.add(httpField.getName(), httpField.getValue()), HttpHeaders::putAll);
+                        StringBuilder responseContent = Optional.ofNullable((String) complete.getRequest().getAttributes().get("response_content"))
+                                .orElseGet(String::new)
+                                .codePoints()
+                                .limit(2048)
+                                .collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append);
+                        HttpHeaders responseHeaders = complete.getResponse().getHeaders().stream().collect(HttpHeaders::new, (headers, httpField) -> headers.add(httpField.getName(), httpField.getValue()), HttpHeaders::putAll);
+                        log.info("elapsed_time: {}, method: {}, requested_uri: {}, status_code: {}, request_headers: {}, response_headers: {}, request_content: {}, response_content: {}",
+                                elapsedTime,
+                                complete.getRequest().getMethod(),
+                                complete.getRequest().getURI(),
+                                statusCode,
+                                requestHeaders,
+                                responseHeaders,
+                                requestContent,
+                                responseContent,
+                                complete.getFailure()
+                        );
+                    }
+                });
+                return newRequest;
+            }
+        };
+        httpClient.getProxyConfiguration().getProxies().add(new HttpProxy(proxy.getHost(), proxy.getPort()) {
+            @Override
+            public boolean matches(Origin origin) {
+                return proxy.matches(origin.getAddress().getHost());
+            }
+        });
+        httpClient.setConnectTimeout(connectTimeout.toMillis());
+        httpClient.setAddressResolutionTimeout(queryTimeout.toMillis());
+        httpClient.setIdleTimeout(idleTimeout.toMillis());
+        httpClient.setFollowRedirects(false);
+        httpClient.setUserAgentField(null);
+        return httpClient;
     }
 
     @Getter

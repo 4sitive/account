@@ -178,7 +178,7 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
     }
 
     // @formatter:off
-    @Bean
+//    @Bean
     public RegisteredClientRepository registeredClientRepository() {
         RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
                 .clientId("4sitive")
