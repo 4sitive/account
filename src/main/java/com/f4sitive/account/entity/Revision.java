@@ -30,7 +30,7 @@ import java.util.Set;
 public class Revision implements Persistable<Long> {
     private static final long serialVersionUID = 845947266662871674L;
     @Id
-    @GeneratedValue
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @RevisionNumber
     @Column(name = "ID")
     private Long id;

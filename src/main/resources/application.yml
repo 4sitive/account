@@ -43,6 +43,13 @@ spring:
 #              - account_email
   config:
     import: optional:classpath:security.yml
+  jpa:
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate.globally_quoted_identifiers: true
+  datasource:
+    platform: h2
 server:
   forward-headers-strategy: framework
 #openssl rsa -in private.pem -pubout -out public.pem

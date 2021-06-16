@@ -18,6 +18,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.jdbc.datasource.LazyConnectionDataSourceProxy;
 
 import javax.sql.DataSource;
+import java.util.function.Supplier;
 
 @Configuration
 @ConfigurationProperties(prefix = "sql")
@@ -61,28 +62,26 @@ public class SqlConfig {
 
         @Override
         public void logSQL(int connectionId, String now, long elapsed, Category category, String prepared, String sql, String url) {
-            if (Category.STATEMENT.equals(category) || Category.BATCH.equals(category)) {
-                switch (sql.trim().split(" ", 2)[0].toUpperCase()) {
-                    case "SELECT":
-                    case "INSERT":
-                    case "UPDATE":
-                    case "DELETE":
-                        sql = FormatStyle.BASIC.getFormatter().format(sql);
-                        break;
-                    case "CREATE":
-                    case "ALTER":
-                    case "DROP":
-                        sql = FormatStyle.DDL.getFormatter().format(sql);
-                        break;
-                    default:
-                        sql = FormatStyle.NONE.getFormatter().format(sql);
-                        break;
+            Supplier<String> query = () -> {
+                if (Category.STATEMENT.equals(category) || Category.BATCH.equals(category)) {
+                    switch (sql.replaceAll("--.*\n", "").replaceAll("\n", "").replaceAll("/\\*.*\\*/", "").trim().split(" ", 2)[0].toUpperCase()) {
+                        case "SELECT":
+                        case "INSERT":
+                        case "UPDATE":
+                        case "DELETE":
+                            return FormatStyle.BASIC.getFormatter().format(sql);
+                        case "CREATE":
+                        case "ALTER":
+                        case "DROP":
+                            return FormatStyle.DDL.getFormatter().format(sql);
+                        default:
+                            return FormatStyle.NONE.getFormatter().format(sql);
+                    }
+                } else {
+                    return prepared;
                 }
-                prepared = "";
-            }
-
-            String msg = strategy.formatMessage(connectionId, now, elapsed, category.toString(), prepared, sql, url);
-
+            };
+            String msg = strategy.formatMessage(connectionId, now, elapsed, category.toString(), "", query.get(), url);
             if (Category.ERROR.equals(category)) {
                 log.error(msg);
             } else if (Category.WARN.equals(category)) {

@@ -27,13 +27,13 @@ public class LoginController {
         this.requestCache = requestCache;
     }
 
-    @GetMapping("/oauth2/success/{registrationId}")
-    public String get_oauth2_success(Principal principal, @PathVariable("registrationId") String registrationId, HttpServletRequest request, HttpServletResponse response) {
+    @GetMapping("/oauth2/success/{provider}")
+    public String get_oauth2_success(Principal principal, @PathVariable("provider") String provider, HttpServletRequest request, HttpServletResponse response) {
         return "login/oauth2/success";
     }
 
-    @PostMapping("/oauth2/success/{registrationId}")
-    public void post_oauth2_success(Principal principal, @PathVariable("registrationId") String registrationId, HttpServletRequest request, HttpServletResponse response) {
+    @PostMapping("/oauth2/success/{provider}")
+    public void post_oauth2_success(Principal principal, @PathVariable("provider") String provider, HttpServletRequest request, HttpServletResponse response) {
         Optional.ofNullable(requestCache.getRequest(request, response))
                 .map(SavedRequest::getRedirectUrl)
                 .ifPresent(redirectUrl -> {
