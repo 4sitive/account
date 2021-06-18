@@ -6,6 +6,11 @@ import com.p6spy.engine.spy.P6SpyOptions;
 import com.p6spy.engine.spy.appender.FormattedLogger;
 import lombok.Getter;
 import lombok.Setter;
+import net.ttddyy.dsproxy.listener.logging.DefaultQueryLogEntryCreator;
+import net.ttddyy.dsproxy.listener.logging.SLF4JLogLevel;
+import net.ttddyy.dsproxy.listener.logging.SLF4JQueryLoggingListener;
+import net.ttddyy.dsproxy.listener.logging.SystemOutQueryLoggingListener;
+import net.ttddyy.dsproxy.support.ProxyDataSourceBuilder;
 import org.hibernate.engine.jdbc.internal.FormatStyle;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,11 +40,40 @@ public class SqlConfig {
             @Override
             public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
                 if (bean instanceof DataSource) {
-                    P6SpyOptions.getActiveInstance().setAppender(SqlLogger.class.getName());
-                    if (threshold > 0L) {
-                        ((SqlLogger) P6SpyOptions.getActiveInstance().getAppenderInstance()).setThreshold(threshold);
-                    }
-                    return new LazyConnectionDataSourceProxy(new P6DataSource((DataSource) bean));
+                    DefaultQueryLogEntryCreator creator = new DefaultQueryLogEntryCreator() {
+                        @Override
+                        protected String formatQuery(String query) {
+                            switch (query.replaceAll("--.*\n", "").replaceAll("\n", "").replaceAll("/\\*.*\\*/", "").trim().split(" ", 2)[0].toUpperCase()) {
+                                case "SELECT":
+                                case "INSERT":
+                                case "UPDATE":
+                                case "DELETE":
+                                    return FormatStyle.BASIC.getFormatter().format(query);
+                                case "CREATE":
+                                case "ALTER":
+                                case "DROP":
+                                    return FormatStyle.DDL.getFormatter().format(query);
+                                default:
+                                    return FormatStyle.NONE.getFormatter().format(query);
+                            }
+                        }
+                    };
+                    creator.setMultiline(true);
+                    return new LazyConnectionDataSourceProxy(ProxyDataSourceBuilder
+                            .create((DataSource) bean)
+                            .proxyResultSet()
+                            .traceMethodsWhen(() -> log.isTraceEnabled(), (message) -> log.trace(message))
+                            .afterQuery((execInfo, queryInfoList) -> {
+                                if (threshold <= execInfo.getElapsedTime()) {
+                                    log.info(creator.getLogEntry(execInfo, queryInfoList, false, true));
+                                }
+                            })
+                            .build());
+//                    P6SpyOptions.getActiveInstance().setAppender(SqlLogger.class.getName());
+//                    if (threshold > 0L) {
+//                        ((SqlLogger) P6SpyOptions.getActiveInstance().getAppenderInstance()).setThreshold(threshold);
+//                    }
+//                    return new LazyConnectionDataSourceProxy(new P6DataSource((DataSource) bean));
                 }
                 return bean;
             }
