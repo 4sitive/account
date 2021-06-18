@@ -1,6 +1,6 @@
 package com.f4sitive.account.entity;
 
-import com.f4sitive.account.converter.StringSetToCommaDelimitedStringConverter;
+import com.f4sitive.account.converter.StringSetToWhiteSpaceDelimitedStringConverter;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -15,48 +15,50 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import javax.persistence.*;
 import java.io.Serializable;
 import java.time.Instant;
-import java.util.*;
+import java.util.LinkedHashSet;
+import java.util.Optional;
+import java.util.Set;
 
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
 @Entity
 @NoArgsConstructor
-@Table(name = "USER")
-public class User implements Auditable<String, String, Instant>, Serializable {
-    private static final long serialVersionUID = 1L;
+@Table(name = "AUTHORIZED_CLIENT")
+public class AuthorizedClient implements Auditable<String, String, Instant>, Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY, generator = "generator")
     @GenericGenerator(name = "generator", strategy = "uuid2")
     @Column(name = "ID", length = 36)
     private String id;
 
-    @Convert(converter = StringSetToCommaDelimitedStringConverter.class)
-    @Column(name = "AUTHORITIES")
-    private Set<String> authorities = new LinkedHashSet<>();
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "USER_ID", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
+    private User user;
 
-    @Column(name = "NAME", length = 200)
-    private String name;
+    @Column(name = "REGISTRATION_ID")
+    private String registrationId;
 
-    @Column(name = "DISPLAY_NAME", length = 200)
-    private String displayName;
-
-    @Column(name = "PASSWORD")
     @Lob
-    private String password;
+    @Column(name = "ACCESS_TOKEN")
+    private String accessToken;
 
-    @Column(name = "USERNAME", length = 200)
-    private String username;
-
-    @ElementCollection(fetch = FetchType.EAGER)
-    @JoinTable(name = "USER_ATTRIBUTE", joinColumns = @JoinColumn(name = "USER_ID", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)))
-    @MapKeyColumn(name = "KEY", length = 45)
     @Lob
-    @Column(name = "VALUE", nullable = false)
-    private Map<String, String> attribute = new HashMap<>();
+    @Column(name = "REFRESH_TOKEN")
+    private String refreshToken;
 
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<AuthorizedClient> authorizedClients = new HashSet<>();
+    @Column(name = "TOKEN_TYPE")
+    private String tokenType;
+
+    @Column(name = "ISSUED_AT")
+    private Instant issuedAt;
+
+    @Column(name = "EXPIRES_AT")
+    private Instant expiresAt;
+
+    @Convert(converter = StringSetToWhiteSpaceDelimitedStringConverter.class)
+    @Column(name = "SCOPES")
+    private Set<String> scopes = new LinkedHashSet<>();
 
     @Version
     @Column(name = "VERSION")

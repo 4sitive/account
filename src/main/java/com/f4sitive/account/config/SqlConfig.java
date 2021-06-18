@@ -63,6 +63,7 @@ public class SqlConfig {
                             .create((DataSource) bean)
                             .proxyResultSet()
                             .traceMethodsWhen(() -> log.isTraceEnabled(), (message) -> log.trace(message))
+                            .traceMethodsWhen(() -> log.isInfoEnabled(), (message) -> log.info(message))
                             .afterQuery((execInfo, queryInfoList) -> {
                                 if (threshold <= execInfo.getElapsedTime()) {
                                     log.info(creator.getLogEntry(execInfo, queryInfoList, false, true));
