@@ -166,7 +166,7 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
                             String registration_hint = ServletRequestUtils.getStringParameter(request, "registration_hint", null);
                             return Optional.ofNullable(registration_hint)
                                     .filter(StringUtils::hasText)
-                                    .map(registrationId -> clientRegistrationRepository.findByRegistrationId(registrationId.toUpperCase()))
+                                    .map(registrationId -> clientRegistrationRepository.findByRegistrationId(registrationId.toLowerCase()))
                                     .map(registration -> OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI + "/" + registration.getRegistrationId() + queryString)
                                     .orElseGet(() -> super.determineUrlToUseForThisRequest(request, response, exception));
                         }
@@ -178,7 +178,7 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
     }
 
     // @formatter:off
-//    @Bean
+    @Bean
     public RegisteredClientRepository registeredClientRepository() {
         RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
                 .clientId("4sitive")
