@@ -43,10 +43,7 @@ import java.util.Arrays;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.*;
 
 @Configuration(proxyBeanMethods = false)
 @ConfigurationProperties("http")
@@ -149,15 +146,15 @@ public class HttpConfig {
                                 try {
                                     return InetAddress.getAllByName(host);
                                 } catch (UnknownHostException e) {
-                                    throw new RuntimeException(e);
+                                    throw new CompletionException(e);
                                 }
                             }).get(queryTimeout.toMillis(), TimeUnit.MILLISECONDS);
-                        } catch (InterruptedException | TimeoutException e) {
+                        } catch (InterruptedException | TimeoutException | ExecutionException e) {
                             UnknownHostException exception = new UnknownHostException(e instanceof TimeoutException ? "DNS timeout " + queryTimeout.toMillis() + " ms" : e.getMessage());
                             exception.setStackTrace(e.getStackTrace());
                             exception.initCause(e);
                             throw exception;
-                        } catch (ExecutionException e) {
+                        } catch (CompletionException e) {
                             throw Optional.ofNullable(e.getCause())
                                     .filter(throwable -> throwable.getCause() instanceof UnknownHostException)
                                     .map(throwable -> (UnknownHostException) throwable.getCause())
