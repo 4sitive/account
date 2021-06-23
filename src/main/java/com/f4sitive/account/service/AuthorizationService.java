@@ -2,12 +2,13 @@ package com.f4sitive.account.service;
 
 import org.springframework.security.oauth2.core.OAuth2TokenType;
 import org.springframework.security.oauth2.server.authorization.OAuth2Authorization;
+import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationCode;
 import org.springframework.security.oauth2.server.authorization.OAuth2AuthorizationService;
 
 public class AuthorizationService implements OAuth2AuthorizationService {
     @Override
     public void save(OAuth2Authorization authorization) {
-
+        authorization.getToken(OAuth2AuthorizationCode.class);
     }
 
     @Override
