@@ -6,12 +6,15 @@ import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.convert.converter.Converter;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.http.converter.FormHttpMessageConverter;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.authority.AuthorityUtils;
@@ -22,7 +25,6 @@ import org.springframework.security.oauth2.client.endpoint.DefaultAuthorizationC
 import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
 import org.springframework.security.oauth2.client.http.OAuth2ErrorResponseErrorHandler;
-import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequestEntityConverter;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
@@ -35,11 +37,15 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.oauth2.core.http.converter.OAuth2AccessTokenResponseHttpMessageConverter;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
+import org.springframework.security.oauth2.server.authorization.config.ProviderSettings;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.security.web.savedrequest.CookieRequestCache;
 import org.springframework.security.web.savedrequest.RequestCache;
 import org.springframework.security.web.savedrequest.SavedRequest;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.util.matcher.AnyRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClientException;
@@ -115,6 +121,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         };
 
         http
+                .requestMatcher(AnyRequestMatcher.INSTANCE)
                 .authorizeRequests((requests) -> requests.anyRequest().authenticated())
                 .oauth2Login(customizer -> customizer
                         .successHandler(successHandler)
@@ -124,7 +131,17 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                         )
                         .userInfoEndpoint(userInfoEndpointConfig -> userInfoEndpointConfig
                                 .userService(userService(getApplicationContext().getBean(HttpClient.class))))
-                );//Customizer.withDefaults()
+                );
+//                .formLogin(Customizer.withDefaults());
+    }
+
+    public WebSecurityCustomizer ss() {
+        return new WebSecurityCustomizer() {
+            @Override
+            public void customize(WebSecurity web) {
+//                web.
+            }
+        };
     }
 
     private OAuth2UserService<OAuth2UserRequest, OAuth2User> userService(HttpClient httpClient) {
@@ -185,7 +202,15 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
     @Bean
-    public RequestCache requestCache() {
-        return new CookieRequestCache();
+    public RequestCache requestCache(ProviderSettings providerSettings) {
+        CookieRequestCache requestCache = new CookieRequestCache();
+        requestCache.setRequestMatcher(new OrRequestMatcher(
+                new AntPathRequestMatcher(
+                        providerSettings.authorizationEndpoint(),
+                        HttpMethod.GET.name()),
+                new AntPathRequestMatcher(
+                        providerSettings.authorizationEndpoint(),
+                        HttpMethod.POST.name())));
+        return requestCache;
     }
 }

@@ -32,7 +32,7 @@ public class CacheConfig {
                             }
                         }))
                         .entryTtl(Duration.ofHours(1L))
-                        .computePrefixWith(cacheName -> "spring:cache:")
+                        .computePrefixWith(cacheName -> name + ":")
                         .disableCachingNullValues())
                 .initialCacheNames(Collections.singleton(name))
                 .disableCreateOnMissingCache()

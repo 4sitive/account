@@ -8,7 +8,6 @@ import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import lombok.Getter;
 import lombok.Setter;
-import lombok.SneakyThrows;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -86,8 +85,31 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
+        http
+                .formLogin(customizer -> customizer.addObjectPostProcessor(new ObjectPostProcessor<Object>() {
+                    @Override
+                    public Object postProcess(Object object) {
+                        if (object instanceof LoginUrlAuthenticationEntryPoint) {
+                            String loginFormUrl = ((LoginUrlAuthenticationEntryPoint) object).getLoginFormUrl();
+                            return new LoginUrlAuthenticationEntryPoint(loginFormUrl) {
+                                @Override
+                                protected String determineUrlToUseForThisRequest(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) {
+                                    String queryString = StringUtils.hasText(request.getQueryString()) ? "?" + request.getQueryString() : "";
+                                    String registration_hint = ServletRequestUtils.getStringParameter(request, "registration_hint", null);
+                                    return Optional.ofNullable(registration_hint)
+                                            .filter(StringUtils::hasText)
+                                            .map(registrationId -> clientRegistrationRepository.findByRegistrationId(registrationId.toLowerCase()))
+                                            .map(registration -> OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI + "/" + registration.getRegistrationId() + queryString)
+                                            .orElseGet(() -> super.determineUrlToUseForThisRequest(request, response, exception));
+                                }
+                            };
+                        }
+                        return object;
+                    }
+                }));
         OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
-        http.getConfigurer(OAuth2AuthorizationServerConfigurer.class)
+        http
+                .getConfigurer(OAuth2AuthorizationServerConfigurer.class)
                 .addObjectPostProcessor(new ObjectPostProcessor<Object>() {
                     @Override
                     public Object postProcess(Object object) {
@@ -95,7 +117,6 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
                             Field field = ReflectionUtils.findField(OAuth2AuthorizationEndpointFilter.class, "redirectStrategy");
                             ReflectionUtils.makeAccessible(field);
                             ReflectionUtils.setField(field, object, new DefaultRedirectStrategy() {
-                                @SneakyThrows
                                 @Override
                                 public void sendRedirect(HttpServletRequest request, HttpServletResponse response, String url) throws IOException {
                                     Optional.ofNullable(request.getSession(false)).ifPresent(HttpSession::invalidate);
@@ -154,27 +175,6 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
                         return object;
                     }
                 });
-        http.formLogin(customizer -> customizer.addObjectPostProcessor(new ObjectPostProcessor<Object>() {
-            @Override
-            public Object postProcess(Object object) {
-                if (object instanceof LoginUrlAuthenticationEntryPoint) {
-                    String loginFormUrl = ((LoginUrlAuthenticationEntryPoint) object).getLoginFormUrl();
-                    return new LoginUrlAuthenticationEntryPoint(loginFormUrl) {
-                        @Override
-                        protected String determineUrlToUseForThisRequest(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) {
-                            String queryString = StringUtils.hasText(request.getQueryString()) ? "?" + request.getQueryString() : "";
-                            String registration_hint = ServletRequestUtils.getStringParameter(request, "registration_hint", null);
-                            return Optional.ofNullable(registration_hint)
-                                    .filter(StringUtils::hasText)
-                                    .map(registrationId -> clientRegistrationRepository.findByRegistrationId(registrationId.toLowerCase()))
-                                    .map(registration -> OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI + "/" + registration.getRegistrationId() + queryString)
-                                    .orElseGet(() -> super.determineUrlToUseForThisRequest(request, response, exception));
-                        }
-                    };
-                }
-                return object;
-            }
-        }));
     }
 
     // @formatter:off
