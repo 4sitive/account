@@ -47,18 +47,21 @@ public class AuthorizedClient implements Auditable<String, String, Instant>, Ser
     @Column(name = "REFRESH_TOKEN")
     private String refreshToken;
 
-    @Column(name = "TOKEN_TYPE")
-    private String tokenType;
+    @Column(name = "ACCESS_TOKEN_TYPE")
+    private String accessTokenType;
 
-    @Column(name = "ISSUED_AT")
-    private Instant issuedAt;
+    @Column(name = "ACCESS_TOKEN_ISSUED_AT")
+    private Instant accessTokenIssuedAt;
 
-    @Column(name = "EXPIRES_AT")
-    private Instant expiresAt;
+    @Column(name = "REFRESH_TOKEN_ISSUED_AT")
+    private Instant refreshTokenIssuedAt;
+
+    @Column(name = "ACCESS_TOKEN_EXPIRES_AT")
+    private Instant accessTokenExpiresAt;
 
     @Convert(converter = StringSetToWhiteSpaceDelimitedStringConverter.class)
-    @Column(name = "SCOPES")
-    private Set<String> scopes = new LinkedHashSet<>();
+    @Column(name = "ACCESS_TOKEN_SCOPES")
+    private Set<String> accessTokenScopes = new LinkedHashSet<>();
 
     @Version
     @Column(name = "VERSION")

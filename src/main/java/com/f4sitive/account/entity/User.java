@@ -78,6 +78,10 @@ public class User implements Auditable<String, String, Instant>, Serializable {
     @Column(name = "LAST_MODIFIED_DATE")
     private Instant lastModifiedDate;
 
+    public User(String id) {
+        this.id = id;
+    }
+
     @Override
     public Optional<String> getCreatedBy() {
         return Optional.ofNullable(createdBy);
