@@ -2,15 +2,12 @@ package com.f4sitive.account.config;
 
 import lombok.Getter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
-import javax.servlet.DispatcherType;
-import javax.servlet.Filter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,11 +21,8 @@ public class CorsConfig {
     private final Map<String, Cors> mapping = new LinkedHashMap<>();
 
     @Bean
-    FilterRegistrationBean<Filter> corsFilter(List<CorsConfigurationSource> sources) {
-        FilterRegistrationBean<Filter> filterRegistrationBean = new FilterRegistrationBean<>(new CorsFilter(request -> sources.stream().map(source -> source.getCorsConfiguration(request)).filter(Objects::nonNull).findFirst().orElse(null)));
-        filterRegistrationBean.setDispatcherTypes(DispatcherType.ASYNC, DispatcherType.ERROR, DispatcherType.REQUEST);
-        filterRegistrationBean.setName("corsFilter");
-        return filterRegistrationBean;
+    CorsFilter corsFilter(List<CorsConfigurationSource> sources) {
+        return new CorsFilter(request -> sources.stream().map(source -> source.getCorsConfiguration(request)).filter(Objects::nonNull).findFirst().orElse(null));
     }
 
     @Bean
