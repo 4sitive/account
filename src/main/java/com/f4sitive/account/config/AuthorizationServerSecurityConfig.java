@@ -109,6 +109,7 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
                 }));
         OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
         http
+                .cors(cors -> cors.disable())
                 .getConfigurer(OAuth2AuthorizationServerConfigurer.class)
                 .addObjectPostProcessor(new ObjectPostProcessor<Object>() {
                     @Override
