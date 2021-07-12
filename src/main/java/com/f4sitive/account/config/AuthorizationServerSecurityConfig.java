@@ -110,7 +110,7 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
                 }));
         OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
         http
-                .cors(Customizer.withDefaults())
+//                .cors(Customizer.withDefaults())
                 .getConfigurer(OAuth2AuthorizationServerConfigurer.class)
                 .addObjectPostProcessor(new ObjectPostProcessor<Object>() {
                     @Override

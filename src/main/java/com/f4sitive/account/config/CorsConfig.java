@@ -20,12 +20,12 @@ public class CorsConfig {
     @Getter
     private final Map<String, Cors> mapping = new LinkedHashMap<>();
 
-    @Bean
+//    @Bean
     CorsFilter corsFilter(List<CorsConfigurationSource> sources) {
         return new CorsFilter(request -> sources.stream().map(source -> source.getCorsConfiguration(request)).filter(Objects::nonNull).findFirst().orElse(null));
     }
 
-    @Bean
+//    @Bean
     org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
         org.springframework.web.cors.UrlBasedCorsConfigurationSource source = new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
         source.setCorsConfigurations(mapping.entrySet().stream().collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
