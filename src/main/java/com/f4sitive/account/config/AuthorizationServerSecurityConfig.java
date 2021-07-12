@@ -192,6 +192,7 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
                 .redirectUri("https://oauth.pstmn.io/v1/callback")
                 .redirectUri("positive://login")
                 .redirectUri("http://localhost:8080/swagger-ui/oauth2-redirect.html")
+                .redirectUri("http://lvh.me:8080/swagger-ui/oauth2-redirect.html")
                 .redirectUri("https://api.4sitive.com/swagger-ui/oauth2-redirect.html")
 //                .scope(OidcScopes.OPENID)
                 .scope("message.read")

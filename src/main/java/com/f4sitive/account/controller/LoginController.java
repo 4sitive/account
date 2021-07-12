@@ -28,8 +28,17 @@ public class LoginController {
     }
 
     @GetMapping("/oauth2/success/{provider}")
-    public String get_oauth2_success(Principal principal, @PathVariable("provider") String provider, HttpServletRequest request, HttpServletResponse response) {
-        return "login/oauth2/success";
+    public void get_oauth2_success(Principal principal, @PathVariable("provider") String provider, HttpServletRequest request, HttpServletResponse response) {
+        Optional.ofNullable(requestCache.getRequest(request, response))
+                .map(SavedRequest::getRedirectUrl)
+                .ifPresent(redirectUrl -> {
+                    try {
+                        redirectStrategy.sendRedirect(request, response, redirectUrl);
+                    } catch (IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                });
+//        return "login/oauth2/success";
     }
 
     @PostMapping("/oauth2/success/{provider}")
