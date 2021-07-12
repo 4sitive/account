@@ -16,6 +16,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.ServletServerHttpResponse;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
@@ -109,7 +110,7 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
                 }));
         OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
         http
-                .cors(cors -> cors.disable())
+                .cors(Customizer.withDefaults())
                 .getConfigurer(OAuth2AuthorizationServerConfigurer.class)
                 .addObjectPostProcessor(new ObjectPostProcessor<Object>() {
                     @Override

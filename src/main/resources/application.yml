@@ -90,3 +90,10 @@ spring:
 server:
   forward-headers-strategy: framework
 #openssl rsa -in private.pem -pubout -out public.pem
+cors:
+  mapping:
+    '[/**]':
+      allowed-origin-patterns: '*'
+      allow-credentials: true
+      allowed-headers: '*'
+      allowed-methods: '*'
