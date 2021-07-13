@@ -14,4 +14,8 @@ public interface AuthorizedClientRepository extends JpaRepository<AuthorizedClie
     @Transactional(readOnly = true)
     @Query("SELECT entity FROM AuthorizedClient entity JOIN FETCH entity.user WHERE entity.registrationId = (:registrationId) AND entity.user.id = (:userId)")
     Optional<AuthorizedClient> queryByRegistrationIdAndUserId(@Param("registrationId") String registrationId, @Param("userId") String userId);
+
+    @Transactional(readOnly = true)
+    @Query("SELECT entity FROM AuthorizedClient entity JOIN FETCH entity.user WHERE entity.registrationId = (:registrationId) AND entity.user.username = (:username)")
+    Optional<AuthorizedClient> queryByRegistrationIdAndUserUsername(@Param("registrationId") String registrationId, @Param("username") String username);
 }

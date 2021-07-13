@@ -24,63 +24,63 @@ import java.util.Set;
 @Setter
 @Entity
 @NoArgsConstructor
-@Table(name = "AUTHORIZED_CLIENT")
+@Table
 public class AuthorizedClient implements Auditable<String, String, Instant>, Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY, generator = "generator")
     @GenericGenerator(name = "generator", strategy = "uuid2")
-    @Column(name = "ID", length = 36)
+    @Column(length = 36)
     private String id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "USER_ID", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
+    @JoinColumn(foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
     private User user;
 
-    @Column(name = "REGISTRATION_ID")
+    @Column
     private String registrationId;
 
     @Lob
-    @Column(name = "ACCESS_TOKEN")
+    @Column
     private String accessToken;
 
     @Lob
-    @Column(name = "REFRESH_TOKEN")
+    @Column
     private String refreshToken;
 
-    @Column(name = "ACCESS_TOKEN_TYPE")
+    @Column
     private String accessTokenType;
 
-    @Column(name = "ACCESS_TOKEN_ISSUED_AT")
+    @Column
     private Instant accessTokenIssuedAt;
 
-    @Column(name = "REFRESH_TOKEN_ISSUED_AT")
+    @Column
     private Instant refreshTokenIssuedAt;
 
-    @Column(name = "ACCESS_TOKEN_EXPIRES_AT")
+    @Column
     private Instant accessTokenExpiresAt;
 
     @Convert(converter = StringSetToWhiteSpaceDelimitedStringConverter.class)
-    @Column(name = "ACCESS_TOKEN_SCOPES")
+    @Column
     private Set<String> accessTokenScopes = new LinkedHashSet<>();
 
     @Version
-    @Column(name = "VERSION")
+    @Column
     private long version;
 
     @CreatedBy
-    @Column(name = "CREATED_BY")
+    @Column
     private String createdBy;
 
     @LastModifiedBy
-    @Column(name = "LAST_MODIFIED_BY")
+    @Column
     private String lastModifiedBy;
 
     @CreatedDate
-    @Column(name = "CREATED_DATE")
+    @Column
     private Instant createdDate;
 
     @LastModifiedDate
-    @Column(name = "LAST_MODIFIED_DATE")
+    @Column
     private Instant lastModifiedDate;
 
     @Override
