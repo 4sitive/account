@@ -2,6 +2,7 @@ package com.f4sitive.account.config;
 
 import com.f4sitive.account.entity.User;
 import com.f4sitive.account.service.AuthorizedClientService;
+import com.f4sitive.account.service.UserService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.http.client.HttpClient;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -158,7 +159,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .errorHandler(new OAuth2ErrorResponseErrorHandler())
                 .build();
         Converter<OAuth2UserRequest, RequestEntity<?>> requestEntityConverter = new OAuth2UserRequestEntityConverter();
-        AuthorizedClientService authorizedClientService = getApplicationContext().getBean(AuthorizedClientService.class);
+        UserService userService = getApplicationContext().getBean(UserService.class);
 //        DefaultOAuth2UserService userService = new DefaultOAuth2UserService();
 //        userService.setRestOperations(restTemplate);
 //        return userService;
@@ -188,7 +189,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 
             String id = Optional.ofNullable((String) userRequest.getAdditionalParameters().get("username"))
                     .orElseGet(() -> registrationId + "_" + attributes.get("id"));
-            User user = authorizedClientService.findUserByAuthorizedClient(registrationId, id);
+            User user = userService.findUserByAuthorizedClient(registrationId, id);
             return new DefaultOAuth2User(AuthorityUtils.NO_AUTHORITIES, Collections.singletonMap("id", user.getId()), "id");
         };
     }

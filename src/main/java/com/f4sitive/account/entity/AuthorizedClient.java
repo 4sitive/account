@@ -18,34 +18,36 @@ import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
 @Entity
 @NoArgsConstructor
-@Table
-public class AuthorizedClient implements Auditable<String, String, Instant>, Serializable {
+@Table(name = "oauth2_authorized_client")
+public class AuthorizedClient implements Auditable<String, UUID, Instant>, Serializable {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY, generator = "generator")
-    @GenericGenerator(name = "generator", strategy = "uuid2")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+//    @GeneratedValue(strategy = GenerationType.IDENTITY, generator = "generator")
+//    @GenericGenerator(name = "generator", strategy = "uuid2")
     @Column(length = 36)
-    private String id;
+    private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
+    @JoinColumn(name = "principal_name", referencedColumnName = "username", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
     private User user;
 
     @Column
-    private String registrationId;
+    private String clientRegistrationId;
 
     @Lob
     @Column
-    private String accessToken;
+    private String accessTokenValue;
 
     @Lob
     @Column
-    private String refreshToken;
+    private String refreshTokenValue;
 
     @Column
     private String accessTokenType;
@@ -54,10 +56,10 @@ public class AuthorizedClient implements Auditable<String, String, Instant>, Ser
     private Instant accessTokenIssuedAt;
 
     @Column
-    private Instant refreshTokenIssuedAt;
+    private Instant accessTokenExpiresAt;
 
     @Column
-    private Instant accessTokenExpiresAt;
+    private Instant refreshTokenIssuedAt;
 
     @Convert(converter = StringSetToWhiteSpaceDelimitedStringConverter.class)
     @Column

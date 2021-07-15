@@ -8,14 +8,15 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository("repository.AuthorizedClientRepository")
-public interface AuthorizedClientRepository extends JpaRepository<AuthorizedClient, String> {
+public interface AuthorizedClientRepository extends JpaRepository<AuthorizedClient, UUID> {
     @Transactional(readOnly = true)
-    @Query("SELECT entity FROM AuthorizedClient entity JOIN FETCH entity.user WHERE entity.registrationId = (:registrationId) AND entity.user.id = (:userId)")
-    Optional<AuthorizedClient> queryByRegistrationIdAndUserId(@Param("registrationId") String registrationId, @Param("userId") String userId);
+    @Query("SELECT entity FROM AuthorizedClient entity JOIN FETCH entity.user WHERE entity.clientRegistrationId = (:clientRegistrationId) AND entity.user.id = (:userId)")
+    Optional<AuthorizedClient> queryByRegistrationIdAndUserId(@Param("clientRegistrationId") String clientRegistrationId, @Param("userId") String userId);
 
     @Transactional(readOnly = true)
-    @Query("SELECT entity FROM AuthorizedClient entity JOIN FETCH entity.user WHERE entity.registrationId = (:registrationId) AND entity.user.username = (:username)")
-    Optional<AuthorizedClient> queryByRegistrationIdAndUserUsername(@Param("registrationId") String registrationId, @Param("username") String username);
+    @Query("SELECT entity FROM AuthorizedClient entity JOIN FETCH entity.user WHERE entity.clientRegistrationId = (:clientRegistrationId) AND entity.user.username = (:username)")
+    Optional<AuthorizedClient> queryByRegistrationIdAndUserUsername(@Param("clientRegistrationId") String clientRegistrationId, @Param("username") String username);
 }
