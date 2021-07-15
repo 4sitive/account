@@ -21,6 +21,7 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.authority.AuthorityUtils;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
@@ -60,10 +61,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
@@ -186,11 +184,10 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 throw new OAuth2AuthenticationException(oauth2Error, oauth2Error.toString(), ex);
             }
             attributes.putAll(userRequest.getAdditionalParameters());
-
             String id = Optional.ofNullable((String) userRequest.getAdditionalParameters().get("username"))
                     .orElseGet(() -> registrationId + "_" + attributes.get("id"));
-            User user = userService.findUserByAuthorizedClient(registrationId, id);
-            return new DefaultOAuth2User(AuthorityUtils.NO_AUTHORITIES, Collections.singletonMap("id", user.getId()), "id");
+            UserDetails userDetails = org.springframework.security.core.userdetails.User.withUsername(id).password(UUID.randomUUID().toString()).authorities(AuthorityUtils.NO_AUTHORITIES).build();
+            return new DefaultOAuth2User(AuthorityUtils.NO_AUTHORITIES, Collections.singletonMap("id", userDetails.getUsername()), "id");
         };
     }
 

@@ -6,6 +6,8 @@ import com.f4sitive.account.repository.AuthorizedClientRepository;
 import com.f4sitive.account.repository.UserRepository;
 import org.springframework.dao.DataRetrievalFailureException;
 import org.springframework.jdbc.core.JdbcOperations;
+import org.springframework.jdbc.support.lob.DefaultLobHandler;
+import org.springframework.jdbc.support.lob.LobHandler;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.JdbcOAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
@@ -24,7 +26,14 @@ import java.util.Set;
 @Service
 public class AuthorizedClientService extends JdbcOAuth2AuthorizedClientService {
     public AuthorizedClientService(JdbcOperations jdbcOperations, ClientRegistrationRepository clientRegistrationRepository) {
-        super(jdbcOperations, clientRegistrationRepository);
+        super(jdbcOperations, clientRegistrationRepository, lobHandler());
+    }
+    static LobHandler lobHandler(){
+        DefaultLobHandler lobHandler = new DefaultLobHandler();
+        lobHandler.setCreateTemporaryLob(true);
+        lobHandler.setStreamAsLob(true);
+        lobHandler.setWrapAsLob(true);
+        return lobHandler;
     }
 //    private final AuthorizedClientRepository authorizedClientRepository;
 //    private final ClientRegistrationRepository clientRegistrationRepository;

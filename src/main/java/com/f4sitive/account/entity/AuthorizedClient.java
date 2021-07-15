@@ -1,5 +1,6 @@
 package com.f4sitive.account.entity;
 
+import com.f4sitive.account.converter.StringSetToCommaDelimitedStringConverter;
 import com.f4sitive.account.converter.StringSetToWhiteSpaceDelimitedStringConverter;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -25,7 +26,7 @@ import java.util.UUID;
 @Setter
 @Entity
 @NoArgsConstructor
-@Table(name = "oauth2_authorized_client")
+@Table(name = "oauth2_authorized_client", uniqueConstraints = @UniqueConstraint(name = "authorized_client_ux_client_registration_id_principal_name", columnNames = {"client_registration_id", "principal_name"}))
 public class AuthorizedClient implements Auditable<String, UUID, Instant>, Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -38,30 +39,34 @@ public class AuthorizedClient implements Auditable<String, UUID, Instant>, Seria
     @JoinColumn(name = "principal_name", referencedColumnName = "username", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
     private User user;
 
-    @Column
+    @Column(name = "client_registration_id")
     private String clientRegistrationId;
-
-    @Lob
-    @Column
-    private String accessTokenValue;
-
-    @Lob
-    @Column
-    private String refreshTokenValue;
 
     @Column
     private String accessTokenType;
 
     @Column
-    private Instant accessTokenIssuedAt;
+    private Instant accessTokenExpiresAt;
+
+    @Lob
+    @Column
+    @Basic
+    private String accessTokenValue;
 
     @Column
-    private Instant accessTokenExpiresAt;
+    private Instant accessTokenIssuedAt;
+
+    @Lob
+    @Basic
+    @Column
+    private String refreshTokenValue;
 
     @Column
     private Instant refreshTokenIssuedAt;
 
-    @Convert(converter = StringSetToWhiteSpaceDelimitedStringConverter.class)
+    @Convert(converter = StringSetToCommaDelimitedStringConverter.class)
+    @Basic
+    @Lob
     @Column
     private Set<String> accessTokenScopes = new LinkedHashSet<>();
 

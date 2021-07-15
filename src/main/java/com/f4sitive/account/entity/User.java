@@ -15,28 +15,31 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import javax.persistence.*;
 import java.io.Serializable;
 import java.time.Instant;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
 @Entity
 @NoArgsConstructor
-@Table(uniqueConstraints = @UniqueConstraint(name = "ux_user_username", columnNames = {"username"}))
-public class User implements Auditable<String, String, Instant>, Serializable {
+@Table(name="users", uniqueConstraints = @UniqueConstraint(name = "ux_user_username", columnNames = {"username"}))
+public class User implements Auditable<String, UUID, Instant>, Serializable {
     private static final long serialVersionUID = 1L;
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY, generator = "generator")
-    @GenericGenerator(name = "generator", strategy = "uuid2")
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+//    @GeneratedValue(strategy = GenerationType.IDENTITY, generator = "generator")
+//    @GenericGenerator(name = "generator", strategy = "uuid2")
     @Column(length = 36)
-    private String id;
+    private UUID id;
+//
+//    @Convert(converter = StringSetToCommaDelimitedStringConverter.class)
+//    @Column
+//    private Set<String> authorities = new LinkedHashSet<>();
 
-    @Convert(converter = StringSetToCommaDelimitedStringConverter.class)
-    @Column
-    private Set<String> authorities = new LinkedHashSet<>();
+    @ElementCollection(fetch = FetchType.EAGER)
+    @JoinTable(name = "authorities", joinColumns = @JoinColumn(name = "username", referencedColumnName = "username", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)))
+    @Column(name = "authority", nullable = false)
+    private Set<String> attribute = new LinkedHashSet<>();
 
     @Column(length = 200)
     private String name;
@@ -47,6 +50,8 @@ public class User implements Auditable<String, String, Instant>, Serializable {
     @Column
     @Lob
     private String password;
+
+    private boolean enabled;
 
     @Column
     @Lob
@@ -60,13 +65,6 @@ public class User implements Auditable<String, String, Instant>, Serializable {
 
     @Column(length = 200)
     private String image;
-
-//    @ElementCollection(fetch = FetchType.EAGER)
-//    @JoinTable(name = "USER_ATTRIBUTE", joinColumns = @JoinColumn(name = "USER_ID", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)))
-//    @MapKeyColumn(name = "KEY", length = 45)
-//    @Lob
-//    @Column(name = "VALUE", nullable = false)
-//    private Map<String, String> attribute = new HashMap<>();
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<AuthorizedClient> authorizedClients = new HashSet<>();
@@ -90,10 +88,6 @@ public class User implements Auditable<String, String, Instant>, Serializable {
     @LastModifiedDate
     @Column
     private Instant lastModifiedDate;
-
-    public User(String id) {
-        this.id = id;
-    }
 
     public static User of(String username) {
         User user = new User();
