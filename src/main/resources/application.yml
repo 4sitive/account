@@ -76,9 +76,6 @@ spring:
     properties:
       hibernate.globally_quoted_identifiers: true
   datasource:
-    continue-on-error: true
-    initialization-mode: always
-    platform: h2
     hikari:
       auto-commit: false
       max-lifetime: 3600
@@ -87,6 +84,11 @@ spring:
       pool:
         max-wait: 1S
         min-idle: 1
+  sql:
+    init:
+      continue-on-error: true
+      mode: always
+      platform: h2
 server:
   forward-headers-strategy: framework
 #openssl rsa -in private.pem -pubout -out public.pem

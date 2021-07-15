@@ -1,5 +1,7 @@
 package com.f4sitive.account.config;
 
+import com.f4sitive.account.entity.User;
+import com.f4sitive.account.service.AuthorizedClientService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.http.client.HttpClient;
 import org.springframework.boot.web.client.RestTemplateBuilder;
@@ -57,12 +59,18 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
+//    private final AuthorizedClientService authorizedClientService;
+//
+//    public SecurityConfig(AuthorizedClientService authorizedClientService) {
+//        this.authorizedClientService = authorizedClientService;
+//    }
 
     //    @Bean
     OAuth2AuthorizedClientRepository authorizedClientRepository(OAuth2AuthorizedClientService authorizedClientService) {
@@ -150,11 +158,13 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .errorHandler(new OAuth2ErrorResponseErrorHandler())
                 .build();
         Converter<OAuth2UserRequest, RequestEntity<?>> requestEntityConverter = new OAuth2UserRequestEntityConverter();
+        AuthorizedClientService authorizedClientService = getApplicationContext().getBean(AuthorizedClientService.class);
 //        DefaultOAuth2UserService userService = new DefaultOAuth2UserService();
 //        userService.setRestOperations(restTemplate);
 //        return userService;
         return userRequest -> {
             Assert.notNull(userRequest, "userRequest cannot be null");
+//            userRequest.get
             String registrationId = userRequest.getClientRegistration().getRegistrationId();
             RequestEntity<?> request = requestEntityConverter.convert(userRequest);
             Map<String, Object> attributes = new LinkedHashMap<>();
@@ -175,9 +185,11 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 throw new OAuth2AuthenticationException(oauth2Error, oauth2Error.toString(), ex);
             }
             attributes.putAll(userRequest.getAdditionalParameters());
+
             String id = Optional.ofNullable((String) userRequest.getAdditionalParameters().get("username"))
-                    .orElseGet(() -> userRequest.getClientRegistration().getRegistrationId() + "_" + attributes.get("id"));
-            return new DefaultOAuth2User(AuthorityUtils.NO_AUTHORITIES, attributes, userNameAttributeName);
+                    .orElseGet(() -> registrationId + "_" + attributes.get("id"));
+            User user = authorizedClientService.findUserByAuthorizedClient(registrationId, id);
+            return new DefaultOAuth2User(AuthorityUtils.NO_AUTHORITIES, Collections.singletonMap("id", user.getId()), "id");
         };
     }
 

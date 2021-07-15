@@ -35,7 +35,9 @@ create table "user"
     "last_modified_by"   varchar(255),
     "last_modified_date" timestamp,
     "name"               varchar(200),
+    "email"               varchar(200),
     "password"           clob,
+    "introduce"          clob,
     "username"           varchar(200),
     "version"            bigint,
     primary key ("id")
@@ -47,4 +49,24 @@ create table "user_attribute"
     "value"   clob        not null,
     "key"     varchar(45) not null,
     primary key ("user_id", "key")
+);
+
+create table "authorized_client"
+(
+    "id"                      varchar(36) not null,
+    "access_token"            clob,
+    "access_token_expires_at" timestamp,
+    "access_token_issued_at"  timestamp,
+    "access_token_scopes"     varchar(255),
+    "access_token_type"       varchar(255),
+    "created_by"              varchar(255),
+    "created_date"            timestamp,
+    "last_modified_by"        varchar(255),
+    "last_modified_date"      timestamp,
+    "refresh_token"           clob,
+    "refresh_token_issued_at" timestamp,
+    "registration_id"         varchar(255),
+    "version"                 bigint,
+    "user_id"                 varchar(36),
+    primary key ("id")
 );

@@ -3,6 +3,7 @@ package com.f4sitive.account.service;
 import com.f4sitive.account.entity.AuthorizedClient;
 import com.f4sitive.account.entity.User;
 import com.f4sitive.account.repository.AuthorizedClientRepository;
+import com.f4sitive.account.repository.UserRepository;
 import org.springframework.dao.DataRetrievalFailureException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
@@ -11,20 +12,32 @@ import org.springframework.security.oauth2.client.registration.ClientRegistratio
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.core.OAuth2AccessToken;
 import org.springframework.security.oauth2.core.OAuth2RefreshToken;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Optional;
 import java.util.Set;
 
+@Service
 public class AuthorizedClientService implements OAuth2AuthorizedClientService {
     private final AuthorizedClientRepository authorizedClientRepository;
     private final ClientRegistrationRepository clientRegistrationRepository;
+    private final UserRepository userRepository;
 
     public AuthorizedClientService(AuthorizedClientRepository authorizedClientRepository,
-                                   ClientRegistrationRepository clientRegistrationRepository) {
+                                   ClientRegistrationRepository clientRegistrationRepository,
+                                   UserRepository userRepository) {
         this.authorizedClientRepository = authorizedClientRepository;
         this.clientRegistrationRepository = clientRegistrationRepository;
+        this.userRepository = userRepository;
+    }
+
+    @Transactional
+    public User findUserByAuthorizedClient(String registrationId, String username) {
+        return authorizedClientRepository.queryByRegistrationIdAndUserUsername(registrationId, username)
+                .map(AuthorizedClient::getUser)
+                .orElseGet(() -> userRepository.save(User.of(username)));
     }
 
     @Override

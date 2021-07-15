@@ -9,11 +9,12 @@ import org.springframework.stereotype.Service;
 public class UserService implements UserDetailsManager {
     @Override
     public void createUser(UserDetails user) {
-
+//        user.get
     }
 
     @Override
     public void updateUser(UserDetails user) {
+//        user.get
 
     }
 

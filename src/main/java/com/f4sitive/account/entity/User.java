@@ -15,71 +15,90 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import javax.persistence.*;
 import java.io.Serializable;
 import java.time.Instant;
-import java.util.*;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.Optional;
+import java.util.Set;
 
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
 @Entity
 @NoArgsConstructor
-@Table(name = "USER")
+@Table(uniqueConstraints = @UniqueConstraint(name = "ux_user_username", columnNames = {"username"}))
 public class User implements Auditable<String, String, Instant>, Serializable {
     private static final long serialVersionUID = 1L;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY, generator = "generator")
     @GenericGenerator(name = "generator", strategy = "uuid2")
-    @Column(name = "ID", length = 36)
+    @Column(length = 36)
     private String id;
 
     @Convert(converter = StringSetToCommaDelimitedStringConverter.class)
-    @Column(name = "AUTHORITIES")
+    @Column
     private Set<String> authorities = new LinkedHashSet<>();
 
-    @Column(name = "NAME", length = 200)
+    @Column(length = 200)
     private String name;
 
-    @Column(name = "DISPLAY_NAME", length = 200)
+    @Column(length = 200)
     private String displayName;
 
-    @Column(name = "PASSWORD")
+    @Column
     @Lob
     private String password;
 
-    @Column(name = "USERNAME", length = 200)
+    @Column
+    @Lob
+    private String introduce;
+
+    @Column(length = 200)
     private String username;
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @JoinTable(name = "USER_ATTRIBUTE", joinColumns = @JoinColumn(name = "USER_ID", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)))
-    @MapKeyColumn(name = "KEY", length = 45)
-    @Lob
-    @Column(name = "VALUE", nullable = false)
-    private Map<String, String> attribute = new HashMap<>();
+    @Column(length = 200)
+    private String email;
+
+    @Column(length = 200)
+    private String image;
+
+//    @ElementCollection(fetch = FetchType.EAGER)
+//    @JoinTable(name = "USER_ATTRIBUTE", joinColumns = @JoinColumn(name = "USER_ID", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)))
+//    @MapKeyColumn(name = "KEY", length = 45)
+//    @Lob
+//    @Column(name = "VALUE", nullable = false)
+//    private Map<String, String> attribute = new HashMap<>();
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<AuthorizedClient> authorizedClients = new HashSet<>();
 
     @Version
-    @Column(name = "VERSION")
+    @Column
     private long version;
 
     @CreatedBy
-    @Column(name = "CREATED_BY")
+    @Column
     private String createdBy;
 
     @LastModifiedBy
-    @Column(name = "LAST_MODIFIED_BY")
+    @Column
     private String lastModifiedBy;
 
     @CreatedDate
-    @Column(name = "CREATED_DATE")
+    @Column
     private Instant createdDate;
 
     @LastModifiedDate
-    @Column(name = "LAST_MODIFIED_DATE")
+    @Column
     private Instant lastModifiedDate;
 
     public User(String id) {
         this.id = id;
+    }
+
+    public static User of(String username) {
+        User user = new User();
+        user.setUsername(username);
+        return user;
     }
 
     @Override
