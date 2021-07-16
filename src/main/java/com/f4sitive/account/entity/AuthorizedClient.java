@@ -1,11 +1,9 @@
 package com.f4sitive.account.entity;
 
-import com.f4sitive.account.converter.StringSetToCommaDelimitedStringConverter;
-import com.f4sitive.account.converter.StringSetToWhiteSpaceDelimitedStringConverter;
+import com.f4sitive.account.converter.SetToCommaDelimitedStringConverter;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.GenericGenerator;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -64,7 +62,7 @@ public class AuthorizedClient implements Auditable<String, UUID, Instant>, Seria
     @Column
     private Instant refreshTokenIssuedAt;
 
-    @Convert(converter = StringSetToCommaDelimitedStringConverter.class)
+    @Convert(converter = SetToCommaDelimitedStringConverter.class)
     @Basic
     @Lob
     @Column

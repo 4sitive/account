@@ -1,6 +1,5 @@
 package com.f4sitive.account.entity;
 
-import com.f4sitive.account.converter.MapToJsonStringConverter;
 import com.f4sitive.account.converter.SetToCommaDelimitedStringConverter;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -16,66 +15,37 @@ import javax.persistence.*;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.LinkedHashSet;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
 @Entity
 @NoArgsConstructor
-@Table(name = "oauth2_authorization")
-public class Authorization implements Auditable<String, String, Instant>, Serializable {
+@Table(name = "oauth2_authorization_consent")
+public class AuthorizationConsent implements Auditable<String, UUID, Instant>, Serializable {
     @Id
-    private String id;
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(length = 36)
+    private UUID id;
 
-    private String registeredClientId;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "principal_name", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
+    private User user;
 
-//    private User user;
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
+    private RegisteredClient registeredClient;
 
-    private String authorizationGrantType;
-
-    @Convert(converter = MapToJsonStringConverter.class)
     @Lob
-    private Map<String, Object> attributes;
-
-    private String state;
-
-    private String accessTokenType;
-
+    @Basic
     @Convert(converter = SetToCommaDelimitedStringConverter.class)
-    @Column
-    private Set<String> accessTokenScopes = new LinkedHashSet<>();
-
-//    @Lob
-    @Basic
-    private byte[] authorizationCodeValue;
-    private Instant authorizationCodeIssuedAt;
-    private Instant authorizationCodeExpiresAt;
-    @Convert(converter = MapToJsonStringConverter.class)
-    @Lob
-    private Map<String, Object> authorizationCodeMetadata;
-
-    @Basic
-    private byte[] oidcIdTokenValue;
-    private Instant oidcIdTokenIssuedAt;
-    private Instant oidcIdTokenExpiresAt;
-    @Convert(converter = MapToJsonStringConverter.class)
-    @Lob
-    private Map<String, Object> oidcIdTokenMetadata;
-
-    @Basic
-    private byte[] refreshTokenValue;
-    private Instant refreshTokenIssuedAt;
-    private Instant refreshTokenExpiresAt;
-
-    @Convert(converter = MapToJsonStringConverter.class)
-    @Lob
-    private Map<String, Object> refreshTokenMetadata;
+    private Set<String> authorities = new LinkedHashSet<>();
 
     @Version
-    private long version;
+    private Long version;
 
     @CreatedBy
     private String createdBy;

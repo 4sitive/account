@@ -7,7 +7,7 @@ import javax.persistence.Converter;
 import java.util.Set;
 
 @Converter
-public class StringSetToCommaDelimitedStringConverter implements AttributeConverter<Set<String>, String> {
+public class SetToCommaDelimitedStringConverter implements AttributeConverter<Set<String>, String> {
     /**
      * @see StringUtils#collectionToCommaDelimitedString
      */

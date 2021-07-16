@@ -15,78 +15,57 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import javax.persistence.*;
 import java.io.Serializable;
 import java.time.Instant;
-import java.util.LinkedHashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
 @Entity
 @NoArgsConstructor
-@Table(name = "oauth2_authorization")
-public class Authorization implements Auditable<String, String, Instant>, Serializable {
+@Table(name = "oauth2_registered_client")
+public class RegisteredClient implements Auditable<String, String, Instant>, Serializable {
     @Id
     private String id;
-
-    private String registeredClientId;
-
-//    private User user;
-
-    private String authorizationGrantType;
-
-    @Convert(converter = MapToJsonStringConverter.class)
-    @Lob
-    private Map<String, Object> attributes;
-
-    private String state;
-
-    private String accessTokenType;
-
+    private String clientId;
+    private Instant clientIdIssuedAt;
+    private String clientSecret;
+    private Instant clientSecretExpiresAt;
+    private String clientName;
     @Convert(converter = SetToCommaDelimitedStringConverter.class)
-    @Column
-    private Set<String> accessTokenScopes = new LinkedHashSet<>();
-
-//    @Lob
-    @Basic
-    private byte[] authorizationCodeValue;
-    private Instant authorizationCodeIssuedAt;
-    private Instant authorizationCodeExpiresAt;
+    private Set<String> clientAuthenticationMethods = new LinkedHashSet<>();
+    @Convert(converter = SetToCommaDelimitedStringConverter.class)
+    private Set<String> authorizationGrantTypes = new LinkedHashSet<>();
+    @Convert(converter = SetToCommaDelimitedStringConverter.class)
+    private Set<String> redirectUris = new LinkedHashSet<>();
+    @Convert(converter = SetToCommaDelimitedStringConverter.class)
+    private Set<String> scopes = new LinkedHashSet<>();
     @Convert(converter = MapToJsonStringConverter.class)
     @Lob
-    private Map<String, Object> authorizationCodeMetadata;
-
     @Basic
-    private byte[] oidcIdTokenValue;
-    private Instant oidcIdTokenIssuedAt;
-    private Instant oidcIdTokenExpiresAt;
+    private Map<String, Object> clientSettings = new LinkedHashMap<>();
     @Convert(converter = MapToJsonStringConverter.class)
     @Lob
-    private Map<String, Object> oidcIdTokenMetadata;
-
     @Basic
-    private byte[] refreshTokenValue;
-    private Instant refreshTokenIssuedAt;
-    private Instant refreshTokenExpiresAt;
-
-    @Convert(converter = MapToJsonStringConverter.class)
-    @Lob
-    private Map<String, Object> refreshTokenMetadata;
+    private Map<String, Object> tokenSettings = new LinkedHashMap<>();
 
     @Version
+    @Column
     private long version;
 
     @CreatedBy
+    @Column
     private String createdBy;
 
     @LastModifiedBy
+    @Column
     private String lastModifiedBy;
 
     @CreatedDate
+    @Column
     private Instant createdDate;
 
     @LastModifiedDate
+    @Column
     private Instant lastModifiedDate;
 
     @Override

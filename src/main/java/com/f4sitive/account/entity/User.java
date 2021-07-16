@@ -1,10 +1,8 @@
 package com.f4sitive.account.entity;
 
-import com.f4sitive.account.converter.StringSetToCommaDelimitedStringConverter;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.GenericGenerator;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -37,7 +35,7 @@ public class User implements Auditable<String, UUID, Instant>, Serializable {
 //    private Set<String> authorities = new LinkedHashSet<>();
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @JoinTable(name = "authorities", joinColumns = @JoinColumn(name = "username", referencedColumnName = "username", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)))
+    @JoinTable(name = "authorities", joinColumns = @JoinColumn(foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)))
     @Column(name = "authority", nullable = false)
     private Set<String> attribute = new LinkedHashSet<>();
 

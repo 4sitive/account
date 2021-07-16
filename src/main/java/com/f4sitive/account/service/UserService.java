@@ -1,20 +1,10 @@
 package com.f4sitive.account.service;
 
-import com.f4sitive.account.entity.AuthorizedClient;
-import com.f4sitive.account.entity.User;
-import com.f4sitive.account.repository.AuthorizedClientRepository;
-import com.f4sitive.account.repository.UserRepository;
-import lombok.RequiredArgsConstructor;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
 import org.springframework.security.provisioning.JdbcUserDetailsManager;
-import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.sql.DataSource;
-import java.util.Optional;
 
 @Service
 public class UserService extends JdbcUserDetailsManager {
@@ -24,6 +14,7 @@ public class UserService extends JdbcUserDetailsManager {
 
     @Transactional
     public String find(String username){
+//        loadUsersByUsername()
 //        if(userExists(username)){
 //        }
 //        else{

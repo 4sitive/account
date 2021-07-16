@@ -1,6 +1,6 @@
 package com.f4sitive.account.entity;
 
-import com.f4sitive.account.converter.StringSetToCommaDelimitedStringConverter;
+import com.f4sitive.account.converter.SetToCommaDelimitedStringConverter;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
@@ -14,8 +14,6 @@ import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.domain.Persistable;
 
 import javax.persistence.*;
-import java.time.Instant;
-import java.time.ZonedDateTime;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
@@ -35,7 +33,7 @@ public class Revision implements Persistable<Long> {
     @Column(name = "ID")
     private Long id;
 
-    @Convert(converter = StringSetToCommaDelimitedStringConverter.class)
+    @Convert(converter = SetToCommaDelimitedStringConverter.class)
     @Column(name = "MODIFIED_ENTITY_NAMES", length = 150, nullable = false, updatable = false)
     @ModifiedEntityNames
     @Lob
