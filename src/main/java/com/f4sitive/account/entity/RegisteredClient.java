@@ -49,23 +49,14 @@ public class RegisteredClient implements Auditable<String, String, Instant>, Ser
     private Map<String, Object> tokenSettings = new LinkedHashMap<>();
 
     @Version
-    @Column
-    private long version;
-
+    private Long version;
     @CreatedBy
-    @Column
     private String createdBy;
-
     @LastModifiedBy
-    @Column
     private String lastModifiedBy;
-
     @CreatedDate
-    @Column
     private Instant createdDate;
-
     @LastModifiedDate
-    @Column
     private Instant lastModifiedDate;
 
     @Override

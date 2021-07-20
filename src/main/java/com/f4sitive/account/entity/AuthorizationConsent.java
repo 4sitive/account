@@ -1,6 +1,7 @@
 package com.f4sitive.account.entity;
 
 import com.f4sitive.account.converter.SetToCommaDelimitedStringConverter;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -24,6 +25,7 @@ import java.util.UUID;
 @Setter
 @Entity
 @NoArgsConstructor
+@AllArgsConstructor
 @Table(name = "oauth2_authorization_consent")
 public class AuthorizationConsent implements Auditable<String, UUID, Instant>, Serializable {
     @Id
@@ -46,16 +48,12 @@ public class AuthorizationConsent implements Auditable<String, UUID, Instant>, S
 
     @Version
     private Long version;
-
     @CreatedBy
     private String createdBy;
-
     @LastModifiedBy
     private String lastModifiedBy;
-
     @CreatedDate
     private Instant createdDate;
-
     @LastModifiedDate
     private Instant lastModifiedDate;
 

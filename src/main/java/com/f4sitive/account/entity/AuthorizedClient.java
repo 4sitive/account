@@ -34,58 +34,36 @@ public class AuthorizedClient implements Auditable<String, UUID, Instant>, Seria
     private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "principal_name", referencedColumnName = "username", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
+    @JoinColumn(name = "principal_name", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
     private User user;
-
     @Column(name = "client_registration_id")
     private String clientRegistrationId;
-
-    @Column
     private String accessTokenType;
-
-    @Column
     private Instant accessTokenExpiresAt;
 
     @Lob
-    @Column
     @Basic
     private String accessTokenValue;
-
-    @Column
     private Instant accessTokenIssuedAt;
-
     @Lob
     @Basic
-    @Column
     private String refreshTokenValue;
-
-    @Column
     private Instant refreshTokenIssuedAt;
 
     @Convert(converter = SetToCommaDelimitedStringConverter.class)
-    @Basic
     @Lob
-    @Column
+    @Basic
     private Set<String> accessTokenScopes = new LinkedHashSet<>();
 
     @Version
-    @Column
-    private long version;
-
+    private Long version;
     @CreatedBy
-    @Column
     private String createdBy;
-
     @LastModifiedBy
-    @Column
     private String lastModifiedBy;
-
     @CreatedDate
-    @Column
     private Instant createdDate;
-
     @LastModifiedDate
-    @Column
     private Instant lastModifiedDate;
 
     @Override

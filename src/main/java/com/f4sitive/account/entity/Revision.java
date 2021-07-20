@@ -20,34 +20,38 @@ import java.util.Set;
 
 @Getter
 @Setter
-@ToString(callSuper = false, of = { "id" })
-@EqualsAndHashCode(callSuper = false, of = { "id" })
+@ToString(callSuper = false, of = {"id"})
+@EqualsAndHashCode(callSuper = false, of = {"id"})
 @RevisionEntity
 @Entity
-@Table(name = "REVISION")
+@Table
 public class Revision implements Persistable<Long> {
     private static final long serialVersionUID = 845947266662871674L;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @RevisionNumber
-    @Column(name = "ID")
+    @Column
     private Long id;
 
-    @Convert(converter = SetToCommaDelimitedStringConverter.class)
-    @Column(name = "MODIFIED_ENTITY_NAMES", length = 150, nullable = false, updatable = false)
     @ModifiedEntityNames
-    @Lob
-    private Set<String> modifiedEntityNames = new HashSet<>();
+//    @Convert(converter = SetToCommaDelimitedStringConverter.class)
+//    @Lob
+//    @Basic
+    @ElementCollection(fetch = FetchType.EAGER)
+    @JoinTable(name = "revision_modified_entity",
+            joinColumns = @JoinColumn(foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
+    )
+    private Set<String> name = new HashSet<>();
 
     @CreatedDate
     @Access(AccessType.PROPERTY)
     @RevisionTimestamp
-    @Column(name = "CREATED_DATE", updatable = false)
+    @Column(updatable = false)
     private Date createdDate;
 
     @CreatedBy
     @Access(AccessType.PROPERTY)
-    @Column(name = "CREATED_BY", length = 20, updatable = false)
+    @Column(length = 20, updatable = false)
     private String createdBy;
 
     @Override

@@ -3,6 +3,7 @@ package com.f4sitive.account.entity;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.GenericGenerator;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -20,74 +21,50 @@ import java.util.*;
 @Setter
 @Entity
 @NoArgsConstructor
-@Table(name="users", uniqueConstraints = @UniqueConstraint(name = "ux_user_username", columnNames = {"username"}))
-public class User implements Auditable<String, UUID, Instant>, Serializable {
+@Table(name="users", uniqueConstraints = @UniqueConstraint(name = "user_ux_username", columnNames = {"username"}))
+public class User implements Auditable<String, Long, Instant>, Serializable {
     private static final long serialVersionUID = 1L;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
 //    @GeneratedValue(strategy = GenerationType.IDENTITY, generator = "generator")
 //    @GenericGenerator(name = "generator", strategy = "uuid2")
-    @Column(length = 36)
-    private UUID id;
-//
-//    @Convert(converter = StringSetToCommaDelimitedStringConverter.class)
-//    @Column
-//    private Set<String> authorities = new LinkedHashSet<>();
+//    @Column(length = 36)
+    private Long id;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @JoinTable(name = "authorities", joinColumns = @JoinColumn(foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)))
-    @Column(name = "authority", nullable = false)
-    private Set<String> attribute = new LinkedHashSet<>();
+    @JoinTable(name = "authorities", joinColumns = @JoinColumn(name = "username", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)))
+    private Set<String> authority = new LinkedHashSet<>();
 
     @Column(length = 200)
     private String name;
 
-    @Column(length = 200)
     private String displayName;
-
-    @Column
     @Lob
+    @Basic
     private String password;
-
     private boolean enabled;
-
-    @Column
     @Lob
+    @Basic
     private String introduce;
-
     @Column(length = 200)
     private String username;
-
-    @Column(length = 200)
     private String email;
-
-    @Column(length = 200)
     private String image;
-
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<AuthorizedClient> authorizedClients = new HashSet<>();
 
     @Version
-    @Column
-    private long version;
-
+    private Long version;
     @CreatedBy
-    @Column
     private String createdBy;
-
     @LastModifiedBy
-    @Column
     private String lastModifiedBy;
-
     @CreatedDate
-    @Column
     private Instant createdDate;
-
     @LastModifiedDate
-    @Column
     private Instant lastModifiedDate;
 
-    public static User of(String username) {
+    public static User username(String username) {
         User user = new User();
         user.setUsername(username);
         return user;

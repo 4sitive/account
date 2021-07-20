@@ -186,8 +186,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             attributes.putAll(userRequest.getAdditionalParameters());
             String id = Optional.ofNullable((String) userRequest.getAdditionalParameters().get("username"))
                     .orElseGet(() -> registrationId + "_" + attributes.get("id"));
-            UserDetails userDetails = org.springframework.security.core.userdetails.User.withUsername(id).password(UUID.randomUUID().toString()).authorities(AuthorityUtils.NO_AUTHORITIES).build();
-            return new DefaultOAuth2User(AuthorityUtils.NO_AUTHORITIES, Collections.singletonMap("id", userDetails.getUsername()), "id");
+            return new DefaultOAuth2User(AuthorityUtils.NO_AUTHORITIES, Collections.singletonMap("id", userService.findUserIdByUsername(id)), "id");
         };
     }
 
