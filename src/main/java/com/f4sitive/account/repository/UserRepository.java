@@ -8,7 +8,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 @Repository
-public interface UserRepository extends JpaRepository<User, Long> {
+public interface UserRepository extends JpaRepository<User, String> {
     //    @Transactional(readOnly = true)
 //    @Query("SELECT entity FROM User entity JOIN FETCH entity.authorizedClients WHERE entity.registrationId = (:registrationId) AND entity.user.id = (:userId)")
 //    Optional<AuthorizedClient> queryByRegistrationIdAndUserId(@Param("registrationId") String registrationId, @Param("userId") String userId);

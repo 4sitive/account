@@ -5,6 +5,7 @@ import com.f4sitive.account.converter.SetToCommaDelimitedStringConverter;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -25,14 +26,18 @@ import java.util.*;
 @Table(name = "oauth2_authorization")
 public class Authorization implements Auditable<String, String, Instant>, Serializable {
     @Id
+    @Column(length = 100, nullable = false)
     private String id;
 
-    private String registeredClientId;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
+    private RegisteredClient registeredClient;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "principal_name", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
     private User user;
 
+    @Column(length = 100, nullable = false)
     private String authorizationGrantType;
 
     @Convert(converter = MapToJsonStringConverter.class)
@@ -40,17 +45,24 @@ public class Authorization implements Auditable<String, String, Instant>, Serial
     @Basic
     private Map<String, Object> attributes = new LinkedHashMap<>();
 
+    @Column(length = 500)
     private String state;
 
+    @Column(length = 100)
     private String accessTokenType;
+
     @Convert(converter = SetToCommaDelimitedStringConverter.class)
     @Lob
     @Basic
     private Set<String> accessTokenScopes = new LinkedHashSet<>();
 
     @Lob
-    @Basic
-    private String accessTokenValue;
+    private byte[] accessTokenValue;
+
+    public String getAccessToken() {
+        return Optional.ofNullable(accessTokenValue).map(String::new).orElse(null);
+    }
+
     private Instant accessTokenIssuedAt;
     private Instant accessTokenExpiresAt;
     @Convert(converter = MapToJsonStringConverter.class)
@@ -58,8 +70,10 @@ public class Authorization implements Auditable<String, String, Instant>, Serial
     private Map<String, Object> accessTokenMetadata = new LinkedHashMap<>();
 
     @Lob
-    @Basic
-    private String authorizationCodeValue;
+    private byte[] authorizationCodeValue;
+    public String getAuthorizationCode() {
+        return Optional.ofNullable(authorizationCodeValue).map(String::new).orElse(null);
+    }
     private Instant authorizationCodeIssuedAt;
     private Instant authorizationCodeExpiresAt;
     @Convert(converter = MapToJsonStringConverter.class)
@@ -67,8 +81,10 @@ public class Authorization implements Auditable<String, String, Instant>, Serial
     private Map<String, Object> authorizationCodeMetadata = new LinkedHashMap<>();
 
     @Lob
-    @Basic
-    private String oidcIdTokenValue;
+    private byte[] oidcIdTokenValue;
+    public String getOidcIdToken() {
+        return Optional.ofNullable(authorizationCodeValue).map(String::new).orElse(null);
+    }
     private Instant oidcIdTokenIssuedAt;
     private Instant oidcIdTokenExpiresAt;
     @Convert(converter = MapToJsonStringConverter.class)
@@ -77,8 +93,10 @@ public class Authorization implements Auditable<String, String, Instant>, Serial
     private Map<String, Object> oidcIdTokenMetadata = new LinkedHashMap<>();
 
     @Lob
-    @Basic
-    private String refreshTokenValue;
+    private byte[] refreshTokenValue;
+    public String getRefreshToken() {
+        return Optional.ofNullable(authorizationCodeValue).map(String::new).orElse(null);
+    }
     private Instant refreshTokenIssuedAt;
     private Instant refreshTokenExpiresAt;
     @Convert(converter = MapToJsonStringConverter.class)

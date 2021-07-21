@@ -8,6 +8,7 @@ import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,6 +22,7 @@ import org.springframework.security.config.annotation.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
+import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationEndpointConfigurer;
 import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -41,6 +43,7 @@ import org.springframework.security.oauth2.server.authorization.client.Registere
 import org.springframework.security.oauth2.server.authorization.config.ProviderSettings;
 import org.springframework.security.oauth2.server.authorization.web.OAuth2AuthorizationEndpointFilter;
 import org.springframework.security.oauth2.server.authorization.web.OAuth2AuthorizationServerMetadataEndpointFilter;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.DefaultRedirectStrategy;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
@@ -65,6 +68,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+@Slf4j
 @Configuration(proxyBeanMethods = false)
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @ConfigurationProperties("authorization-server-security")
@@ -108,9 +112,33 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
                         return object;
                     }
                 }));
-        OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
+//        http.exceptionHandling().authenticationEntryPoint(new AuthenticationEntryPoint() {
+//            @Override
+//            public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException, ServletException {
+//                log.info("ERROR", authException);
+//            }
+//        });
+        OAuth2AuthorizationServerConfigurer<HttpSecurity> authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer<>();
+        authorizationServerConfigurer.authorizationEndpoint(authorizationEndpoint -> authorizationEndpoint.consentPage("/oauth/consent"));
+
+        RequestMatcher endpointsMatcher = authorizationServerConfigurer
+                .getEndpointsMatcher();
         http
-//                .cors(Customizer.withDefaults())
+                .requestMatcher(endpointsMatcher)
+                .authorizeRequests(authorizeRequests ->
+                        authorizeRequests.anyRequest().authenticated()
+                )
+                .csrf(csrf -> csrf.ignoringRequestMatchers(endpointsMatcher))
+                .apply(authorizationServerConfigurer);
+//       http.formLogin(Customizer.withDefaults());
+
+        OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
+//        http
+//                .<OAuth2AuthorizationServerConfigurer<HttpSecurity>>getConfigurer(OAuth2AuthorizationServerConfigurer.class)
+//                .authorizationEndpoint(authorizationEndpointCustomizer -> {
+//                    ((OAuth2AuthorizationEndpointConfigurer)authorizationEndpointCustomizer).consentPage("/jj");
+//                });
+        http
                 .getConfigurer(OAuth2AuthorizationServerConfigurer.class)
                 .addObjectPostProcessor(new ObjectPostProcessor<Object>() {
                     @Override
@@ -178,33 +206,6 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
                     }
                 });
     }
-
-    // @formatter:off
-//    @Bean
-    public RegisteredClientRepository registeredClientRepository() {
-        RegisteredClient registeredClient = RegisteredClient.withId(UUID.randomUUID().toString())
-                .clientId("4sitive")
-                .clientSecret("{noop}secret")
-                .clientAuthenticationMethod(ClientAuthenticationMethod.BASIC)
-                .clientAuthenticationMethod(ClientAuthenticationMethod.POST)
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)
-                .authorizationGrantType(AuthorizationGrantType.CLIENT_CREDENTIALS)
-                .redirectUri("http://127.0.0.1/login/oauth2/code/TEST")
-                .redirectUri("https://oauth.pstmn.io/v1/callback")
-                .redirectUri("positive://login")
-                .redirectUri("http://localhost:8080/swagger-ui/oauth2-redirect.html")
-                .redirectUri("http://lvh.me:8080/swagger-ui/oauth2-redirect.html")
-                .redirectUri("https://api.4sitive.com/swagger-ui/oauth2-redirect.html")
-//                .scope(OidcScopes.OPENID)
-                .scope("message.read")
-                .scope("message.write")
-                .tokenSettings(tokenSettings -> tokenSettings.accessTokenTimeToLive(Duration.ofDays(1L)))
-//                .clientSettings(clientSettings -> clientSettings.requireUserConsent(true))
-                .build();
-        return new InMemoryRegisteredClientRepository(registeredClient);
-    }
-    // @formatter:on
 
     @Bean
     public JWKSource<SecurityContext> jwkSource() {

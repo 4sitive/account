@@ -41,12 +41,13 @@ public class UserService extends JdbcUserDetailsManager {
     }
 
     @Transactional(readOnly = true)
-    public Long findUserIdByUsername(String username) {
+    public String findUserIdByUsername(String username) {
         return userRepository.findByUsername(username)
                 .map(User::getId)
                 .orElseGet(() -> {
-                    createUser(org.springframework.security.core.userdetails.User.withUsername(username).password(UUID.randomUUID().toString()).authorities(AuthorityUtils.NO_AUTHORITIES).build());
-                    return userRepository.findByUsername(username).map(User::getId).orElseThrow(IllegalStateException::new);
+                    return userRepository.save(User.of(org.springframework.security.core.userdetails.User.withUsername(username).password(UUID.randomUUID().toString()).authorities(AuthorityUtils.NO_AUTHORITIES).build())).getId();
+//                    createUser(org.springframework.security.core.userdetails.User.withUsername(username).password(UUID.randomUUID().toString()).authorities(AuthorityUtils.NO_AUTHORITIES).build());
+//                    return userRepository.findByUsername(username).map(User::getId).orElseThrow(IllegalStateException::new);
                 });
     }
     //    private final AuthorizedClientService authorizedClientService;

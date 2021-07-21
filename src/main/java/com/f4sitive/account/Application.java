@@ -32,6 +32,8 @@ public class Application {
                             .clientId("4sitive")
                             .clientSecret("{noop}secret")
                             .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                            .clientAuthenticationMethod(ClientAuthenticationMethod.BASIC)
+                            .clientAuthenticationMethod(ClientAuthenticationMethod.POST)
                             .clientAuthenticationMethod(ClientAuthenticationMethod.CLIENT_SECRET_POST)
                             .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
                             .authorizationGrantType(AuthorizationGrantType.REFRESH_TOKEN)

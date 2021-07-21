@@ -3,7 +3,7 @@ spring:
     name: account
   profiles:
     group:
-      default: LOGGING_CONSOLE
+      default: LOGGING_CONSOLE,LOGGING_CONSOLE_JSON
   security:
     oauth2:
       client:
@@ -102,3 +102,7 @@ cors:
       allow-credentials: true
       allowed-headers: '*'
       allowed-methods: '*'
+
+logging:
+  level:
+    SQL: trace

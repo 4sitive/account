@@ -14,6 +14,7 @@ import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.http.converter.FormHttpMessageConverter;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
@@ -128,8 +129,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         };
 
         http
-                .requestMatcher(AnyRequestMatcher.INSTANCE)
-                .authorizeRequests((requests) -> requests.anyRequest().authenticated())
+//                .requestMatcher(AnyRequestMatcher.INSTANCE)
+                .authorizeRequests((requests) -> requests.anyRequest().permitAll())
                 .oauth2Login(customizer -> customizer
                         .successHandler(successHandler)
                         .failureHandler(failureHandler)
@@ -138,8 +139,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                         )
                         .userInfoEndpoint(userInfoEndpointConfig -> userInfoEndpointConfig
                                 .userService(userService(getApplicationContext().getBean(HttpClient.class))))
-                );
-//                .formLogin(Customizer.withDefaults());
+                )
+                .oauth2Client(Customizer.withDefaults());
     }
 
     public WebSecurityCustomizer ss() {
@@ -211,7 +212,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     }
 
     @Bean
-    public RequestCache requestCache(ProviderSettings providerSettings) {
+    RequestCache requestCache(ProviderSettings providerSettings) {
         CookieRequestCache requestCache = new CookieRequestCache();
         requestCache.setRequestMatcher(new OrRequestMatcher(
                 new AntPathRequestMatcher(

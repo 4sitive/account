@@ -3,6 +3,7 @@ package com.f4sitive.account.entity;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.GenericGenerator;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
@@ -10,6 +11,7 @@ import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.domain.Auditable;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
+import org.springframework.security.core.userdetails.UserDetails;
 
 import javax.persistence.*;
 import java.io.Serializable;
@@ -22,14 +24,15 @@ import java.util.*;
 @Entity
 @NoArgsConstructor
 @Table(name="users", uniqueConstraints = @UniqueConstraint(name = "user_ux_username", columnNames = {"username"}))
-public class User implements Auditable<String, Long, Instant>, Serializable {
+public class User implements Auditable<String, String, Instant>, Serializable {
     private static final long serialVersionUID = 1L;
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-//    @GeneratedValue(strategy = GenerationType.IDENTITY, generator = "generator")
-//    @GenericGenerator(name = "generator", strategy = "uuid2")
-//    @Column(length = 36)
-    private Long id;
+//    @ColumnDefault("random_uuid()")
+//    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @GeneratedValue(strategy = GenerationType.IDENTITY, generator = "generator")
+    @GenericGenerator(name = "generator", strategy = "uuid2")
+    @Column(length = 36)
+    private String id;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @JoinTable(name = "authorities", joinColumns = @JoinColumn(name = "username", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)))
@@ -67,6 +70,14 @@ public class User implements Auditable<String, Long, Instant>, Serializable {
     public static User username(String username) {
         User user = new User();
         user.setUsername(username);
+        return user;
+    }
+
+    public static User of(UserDetails userDetails) {
+        User user = new User();
+        user.setUsername(userDetails.getUsername());
+        user.setPassword(userDetails.getPassword());
+        user.setEnabled(userDetails.isEnabled());
         return user;
     }
 

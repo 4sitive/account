@@ -1,10 +1,7 @@
 package com.f4sitive.account.entity;
 
 import com.f4sitive.account.converter.SetToCommaDelimitedStringConverter;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -18,7 +15,6 @@ import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 
 @EntityListeners(AuditingEntityListener.class)
 @Getter
@@ -27,18 +23,33 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(name = "oauth2_authorization_consent")
-public class AuthorizationConsent implements Auditable<String, UUID, Instant>, Serializable {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(length = 36)
-    private UUID id;
+public class AuthorizationConsent implements Auditable<String, AuthorizationConsent.ID, Instant>, Serializable {
+    @EmbeddedId
+    private AuthorizationConsent.ID id = new AuthorizationConsent.ID();
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "principal_name", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @ToString(callSuper = false, onlyExplicitlyIncluded = true)
+    @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
+    @Embeddable
+    public static class ID implements Serializable {
+        @ToString.Include
+        @Column(name = "registered_client_id")
+        private String registeredClientId;
+
+        @ToString.Include
+        @Column(name = "principal_name")
+        private String userId;
+    }
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "principal_name", insertable = false, updatable = false, foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
     private User user;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(insertable = false, updatable = false, foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
     private RegisteredClient registeredClient;
 
     @Lob

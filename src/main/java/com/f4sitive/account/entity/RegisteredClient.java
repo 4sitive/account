@@ -5,6 +5,7 @@ import com.f4sitive.account.converter.SetToCommaDelimitedStringConverter;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -25,27 +26,47 @@ import java.util.*;
 @Table(name = "oauth2_registered_client")
 public class RegisteredClient implements Auditable<String, String, Instant>, Serializable {
     @Id
+    @Column(length = 100, nullable = false)
     private String id;
+    @Column(length = 100, nullable = false)
     private String clientId;
+    @ColumnDefault("CURRENT_TIMESTAMP")
+    @Column(nullable = false)
     private Instant clientIdIssuedAt;
+    @Lob
+    @Basic
     private String clientSecret;
     private Instant clientSecretExpiresAt;
+    @Column(length = 200, nullable = false)
     private String clientName;
     @Convert(converter = SetToCommaDelimitedStringConverter.class)
+    @Lob
+    @Basic
+    @Column(nullable = false)
     private Set<String> clientAuthenticationMethods = new LinkedHashSet<>();
     @Convert(converter = SetToCommaDelimitedStringConverter.class)
+    @Lob
+    @Basic
+    @Column(nullable = false)
     private Set<String> authorizationGrantTypes = new LinkedHashSet<>();
     @Convert(converter = SetToCommaDelimitedStringConverter.class)
+    @Lob
+    @Basic
     private Set<String> redirectUris = new LinkedHashSet<>();
     @Convert(converter = SetToCommaDelimitedStringConverter.class)
+    @Lob
+    @Basic
+    @Column(nullable = false)
     private Set<String> scopes = new LinkedHashSet<>();
     @Convert(converter = MapToJsonStringConverter.class)
     @Lob
     @Basic
+    @Column(nullable = false)
     private Map<String, Object> clientSettings = new LinkedHashMap<>();
     @Convert(converter = MapToJsonStringConverter.class)
     @Lob
     @Basic
+    @Column(nullable = false)
     private Map<String, Object> tokenSettings = new LinkedHashMap<>();
 
     @Version

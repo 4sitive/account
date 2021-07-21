@@ -15,11 +15,7 @@ public class RegisteredClientService extends JdbcRegisteredClientRepository {
     @Override
     @Transactional
     public void save(RegisteredClient registeredClient) {
-        try {
-            super.save(registeredClient);
-        }catch (IllegalArgumentException e){
-            //ignore
-        }
+        super.save(registeredClient);
     }
 
     @Override
