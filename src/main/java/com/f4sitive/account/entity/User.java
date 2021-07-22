@@ -3,7 +3,6 @@ package com.f4sitive.account.entity;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.GenericGenerator;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
@@ -16,14 +15,17 @@ import org.springframework.security.core.userdetails.UserDetails;
 import javax.persistence.*;
 import java.io.Serializable;
 import java.time.Instant;
-import java.util.*;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
+import java.util.Optional;
+import java.util.Set;
 
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
 @Entity
 @NoArgsConstructor
-@Table(name="users", uniqueConstraints = @UniqueConstraint(name = "user_ux_username", columnNames = {"username"}))
+@Table(name = "user", uniqueConstraints = @UniqueConstraint(name = "user_ux_username", columnNames = {"username"}))
 public class User implements Auditable<String, String, Instant>, Serializable {
     private static final long serialVersionUID = 1L;
     @Id
@@ -35,7 +37,7 @@ public class User implements Auditable<String, String, Instant>, Serializable {
     private String id;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @JoinTable(name = "authorities", joinColumns = @JoinColumn(name = "username", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)))
+    @JoinTable(name = "user_authority", joinColumns = @JoinColumn(name = "username", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)))
     private Set<String> authority = new LinkedHashSet<>();
 
     @Column(length = 200)
@@ -45,7 +47,10 @@ public class User implements Auditable<String, String, Instant>, Serializable {
     @Lob
     @Basic
     private String password;
-    private boolean enabled;
+    private boolean accountExpired;
+    private boolean accountLocked;
+    private boolean credentialsExpired;
+    private boolean disabled;
     @Lob
     @Basic
     private String introduce;
@@ -77,7 +82,10 @@ public class User implements Auditable<String, String, Instant>, Serializable {
         User user = new User();
         user.setUsername(userDetails.getUsername());
         user.setPassword(userDetails.getPassword());
-        user.setEnabled(userDetails.isEnabled());
+        user.setDisabled(!userDetails.isEnabled());
+        user.setCredentialsExpired(!userDetails.isCredentialsNonExpired());
+        user.setAccountExpired(!userDetails.isAccountNonExpired());
+        user.setAccountLocked(!userDetails.isAccountNonLocked());
         return user;
     }
 

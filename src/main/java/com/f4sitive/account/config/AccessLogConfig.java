@@ -6,17 +6,19 @@ import ch.qos.logback.access.spi.AccessContext;
 import ch.qos.logback.access.spi.AccessEvent;
 import ch.qos.logback.access.spi.ServerAdapter;
 import ch.qos.logback.access.tomcat.TomcatServerAdapter;
+import lombok.SneakyThrows;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.catalina.AccessLog;
 import org.apache.catalina.Globals;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
-import org.apache.catalina.valves.AbstractAccessLogValve;
+import org.apache.catalina.valves.AccessLogValve;
+import org.springframework.boot.actuate.autoconfigure.web.ManagementContextConfiguration;
 import org.springframework.boot.web.embedded.tomcat.ConfigurableTomcatWebServerFactory;
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.lang.NonNull;
 import org.springframework.util.ResourceUtils;
 import org.springframework.web.context.request.async.WebAsyncUtils;
@@ -28,57 +30,57 @@ import org.springframework.web.util.WebUtils;
 import javax.servlet.DispatcherType;
 import javax.servlet.Filter;
 import javax.servlet.ServletOutputStream;
-import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import java.io.CharArrayWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.security.Principal;
 import java.util.*;
-import java.util.function.BooleanSupplier;
-import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-@Configuration(proxyBeanMethods = false)
+@Slf4j
+@ManagementContextConfiguration(proxyBeanMethods = false)
 public class AccessLogConfig {
-    public static final String REMOTE_USER_ATTRIBUTE = "org.apache.catalina.AccessLog.RemoteUser";
-
     @Bean
     FilterRegistrationBean<Filter> contentFilter() {
         FilterRegistrationBean<Filter> filterRegistrationBean = new FilterRegistrationBean<>((request, response, chain) -> {
-            remoteUser((HttpServletRequest) request);
-            BooleanSupplier contentCachingDisabled = isContentCachingDisabled(request);
+            HttpServletRequest requestToUse = (HttpServletRequest) request;
+            Optional.ofNullable(requestToUse.getUserPrincipal()).map(Principal::getName).ifPresent(remoteUser -> request.setAttribute("org.apache.catalina.AccessLog.RemoteUser", remoteUser));
+            HttpServletResponse responseToUse = (HttpServletResponse) response;
             if (!DispatcherType.ASYNC.equals(request.getDispatcherType())) {
-                request = request instanceof ContentCachingRequestWrapper ? request : new ContentCachingRequestWrapper((HttpServletRequest) request);
-                response = response instanceof ContentCachingResponseWrapper ? response : new ContentCachingResponseWrapper((HttpServletResponse) response) {
-                    @Override
-                    @NonNull
-                    public ServletOutputStream getOutputStream() throws IOException {
-                        return contentCachingDisabled.getAsBoolean() ? getResponse().getOutputStream() : super.getOutputStream();
-                    }
+                if (!(request instanceof ContentCachingRequestWrapper)) {
+                    requestToUse = new ContentCachingRequestWrapper(requestToUse);
+                }
+                if (!(response instanceof ContentCachingResponseWrapper)) {
+                    responseToUse = new ContentCachingResponseWrapper(responseToUse) {
+                        @Override
+                        @NonNull
+                        public ServletOutputStream getOutputStream() throws IOException {
+                            return request.getAttribute(ShallowEtagHeaderFilter.class.getName() + ".STREAMING") == null ? super.getOutputStream() : getResponse().getOutputStream();
+                        }
 
-                    @Override
-                    @NonNull
-                    public PrintWriter getWriter() throws IOException {
-                        return contentCachingDisabled.getAsBoolean() ? getResponse().getWriter() : super.getWriter();
-                    }
-                };
+                        @Override
+                        @NonNull
+                        public PrintWriter getWriter() throws IOException {
+                            return request.getAttribute(ShallowEtagHeaderFilter.class.getName() + ".STREAMING") == null ? super.getWriter() : getResponse().getWriter();
+                        }
+                    };
+                }
             }
             try {
-                chain.doFilter(request, response);
+                chain.doFilter(requestToUse, responseToUse);
             } finally {
                 if (WebAsyncUtils.getAsyncManager(request).isConcurrentHandlingStarted()) {
-                    byte[] content = request.getAttribute(AccessConstants.LB_INPUT_BUFFER) instanceof byte[] ? (byte[]) request.getAttribute(AccessConstants.LB_INPUT_BUFFER) : new byte[0];
+                    byte[] content = request.getAttribute(AccessConstants.LB_INPUT_BUFFER) instanceof byte[] ? (byte[]) requestToUse.getAttribute(AccessConstants.LB_INPUT_BUFFER) : new byte[0];
                     request.setAttribute(AccessConstants.LB_INPUT_BUFFER, content);
                 } else {
-                    ContentCachingRequestWrapper contentCachingRequest = WebUtils.getNativeRequest(request, ContentCachingRequestWrapper.class);
+                    ContentCachingRequestWrapper contentCachingRequest = WebUtils.getNativeRequest(requestToUse, ContentCachingRequestWrapper.class);
                     if (contentCachingRequest != null) {
                         byte[] content = request.getAttribute(AccessConstants.LB_INPUT_BUFFER) instanceof byte[] ? (byte[]) request.getAttribute(AccessConstants.LB_INPUT_BUFFER) : contentCachingRequest.getContentAsByteArray();
                         request.setAttribute(AccessConstants.LB_INPUT_BUFFER, content);
                     }
-                    ContentCachingResponseWrapper contentCachingResponse = WebUtils.getNativeResponse(response, ContentCachingResponseWrapper.class);
-                    if (contentCachingResponse != null && !contentCachingDisabled.getAsBoolean()) {
+                    ContentCachingResponseWrapper contentCachingResponse = WebUtils.getNativeResponse(responseToUse, ContentCachingResponseWrapper.class);
+                    if (contentCachingResponse != null && request.getAttribute(ShallowEtagHeaderFilter.class.getName() + ".STREAMING") == null) {
                         request.setAttribute(AccessConstants.LB_OUTPUT_BUFFER, contentCachingResponse.getContentAsByteArray());
                         contentCachingResponse.copyBodyToResponse();
                     }
@@ -90,23 +92,15 @@ public class AccessLogConfig {
         return filterRegistrationBean;
     }
 
-    BooleanSupplier isContentCachingDisabled(ServletRequest request) {
-        return () -> request.getAttribute(ShallowEtagHeaderFilter.class.getName() + ".STREAMING") != null;
-    }
-
-    void remoteUser(HttpServletRequest request) {
-        Optional.ofNullable(request.getUserPrincipal())
-                .map(Principal::getName)
-                .ifPresent(name -> request.setAttribute(REMOTE_USER_ATTRIBUTE, name));
-    }
-
+    @SneakyThrows
     @Bean(initMethod = "start", destroyMethod = "stop")
-    AccessContext accessContext(ApplicationContext applicationContext) throws Exception {
+    AccessContext accessContext(ApplicationContext applicationContext) {
         AccessContext context = new AccessContext();
-        Arrays.stream(applicationContext.getEnvironment().getActiveProfiles()).forEach(profile -> context.putProperty(profile, profile));
-        JoranConfigurator jc = new JoranConfigurator();
-        jc.setContext(context);
-        jc.doConfigure(ResourceUtils.getURL("classpath:logback-access-spring.xml"));
+        Arrays.stream(applicationContext.getEnvironment().getActiveProfiles())
+                .forEach(profile -> context.putProperty(profile, profile));
+        JoranConfigurator configurator = new JoranConfigurator();
+        configurator.setContext(context);
+        configurator.doConfigure(ResourceUtils.getURL("classpath:logback-access-spring.xml"));
         return context;
     }
 
@@ -129,9 +123,8 @@ public class AccessLogConfig {
 
             @Override
             public Map<String, String> buildResponseHeaderMap() {
-                return response.getHeaderNames()
+                return new LinkedHashSet<>(response.getHeaderNames())
                         .stream()
-                        .distinct()
                         .collect(LinkedHashMap::new,
                                 (map, headerName) -> map.put(headerName, String.join(",", response.getHeaders(headerName))),
                                 Map::putAll);
@@ -168,7 +161,7 @@ public class AccessLogConfig {
             public String getRemoteUser() {
                 return Optional.ofNullable(remoteUser)
                         .orElseGet(() -> remoteUser = Optional.ofNullable(getRequest())
-                                .map(request -> (String) request.getAttribute(REMOTE_USER_ATTRIBUTE))
+                                .map(request -> (String) request.getAttribute("org.apache.catalina.AccessLog.RemoteUser"))
                                 .orElseGet(super::getRemoteUser));
             }
 
@@ -242,17 +235,13 @@ public class AccessLogConfig {
 
     @Bean
     WebServerFactoryCustomizer<ConfigurableTomcatWebServerFactory> webServerFactoryCustomizer(AccessContext accessContext) {
-        return factory -> factory.addEngineValves(new AbstractAccessLogValve() {
+        return factory -> factory.addEngineValves(new AccessLogValve() {
             @Override
             public void log(Request request, Response response, long time) {
                 ServerAdapter adapter = serverAdapter(request, response);
                 AccessEvent event = accessEvent(request, response, adapter);
                 event.setThreadName(Thread.currentThread().getName());
                 accessContext.callAppenders(event);
-            }
-
-            @Override
-            protected void log(CharArrayWriter message) {
             }
         });
     }

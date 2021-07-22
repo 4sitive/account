@@ -132,7 +132,7 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
                 .apply(authorizationServerConfigurer);
 //       http.formLogin(Customizer.withDefaults());
 
-        OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
+//        OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
 //        http
 //                .<OAuth2AuthorizationServerConfigurer<HttpSecurity>>getConfigurer(OAuth2AuthorizationServerConfigurer.class)
 //                .authorizationEndpoint(authorizationEndpointCustomizer -> {

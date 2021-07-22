@@ -49,9 +49,9 @@ public class Application {
                             .tokenSettings(tokenSettings -> tokenSettings.accessTokenTimeToLive(Duration.ofDays(1L)))
                             .build());
                 }
-                if (bean instanceof UserDetailsManager && bean instanceof GroupManager) {
-                    ((GroupManager) bean).createGroup("test", AuthorityUtils.NO_AUTHORITIES);
-                }
+//                if (bean instanceof UserDetailsManager && bean instanceof GroupManager) {
+//                    ((GroupManager) bean).createGroup("test", AuthorityUtils.NO_AUTHORITIES);
+//                }
                 return bean;
             }
         };

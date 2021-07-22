@@ -106,3 +106,8 @@ cors:
 logging:
   level:
     SQL: trace
+
+management:
+  server:
+    port: 8081
+    add-application-context-header:

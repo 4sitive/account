@@ -23,17 +23,17 @@ import java.util.UUID;
 @Setter
 @Entity
 @NoArgsConstructor
-@Table(name="groups", uniqueConstraints = @UniqueConstraint(name = "group_ux_group_name", columnNames = {"group_name"}))
+@Table(uniqueConstraints = @UniqueConstraint(name = "group_ux_group_name", columnNames = {"name"}))
 public class Group implements Auditable<String, Long, Instant>, Serializable {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "group_name")
+    @Column
     private String name;
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @JoinTable(name = "group_authorities", joinColumns = @JoinColumn(foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)))
+    @JoinTable(name = "group_authority", joinColumns = @JoinColumn(foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)))
     private Set<String> authority = new LinkedHashSet<>();
 
     @ManyToMany
@@ -55,12 +55,6 @@ public class Group implements Auditable<String, Long, Instant>, Serializable {
     private Instant createdDate;
     @LastModifiedDate
     private Instant lastModifiedDate;
-
-    public static User username(String username) {
-        User user = new User();
-        user.setUsername(username);
-        return user;
-    }
 
     @Override
     public Optional<String> getCreatedBy() {
