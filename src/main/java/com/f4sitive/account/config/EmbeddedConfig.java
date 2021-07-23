@@ -5,7 +5,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import redis.embedded.RedisServer;
 
-@Configuration
+//@Configuration
 public class EmbeddedConfig {
     @Bean(initMethod = "start", destroyMethod = "stop")
     public RedisServer redisContainer(RedisProperties properties) {

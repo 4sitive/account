@@ -129,8 +129,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         };
 
         http
-//                .requestMatcher(AnyRequestMatcher.INSTANCE)
-                .authorizeRequests((requests) -> requests.anyRequest().permitAll())
+                .requestMatcher(AnyRequestMatcher.INSTANCE)
+                .authorizeRequests(requests -> requests.anyRequest().authenticated())
                 .oauth2Login(customizer -> customizer
                         .successHandler(successHandler)
                         .failureHandler(failureHandler)

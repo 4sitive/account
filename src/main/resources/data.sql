@@ -12,3 +12,4 @@ values ('4sitive', 'refresh_token,client_credentials,authorization_code',
         '',
         '{"@class":"java.util.HashMap","setting.token.access-token-time-to-live":["java.time.Duration",86400.000000000],"setting.token.refresh-token-time-to-live":["java.time.Duration",3600.000000000],"setting.token.id-token-signature-algorithm":["org.springframework.security.oauth2.jose.jws.SignatureAlgorithm","RS256"],"setting.token.reuse-refresh-tokens":true}',
         1);
+COMMIT;

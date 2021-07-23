@@ -17,19 +17,16 @@ import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.ServletServerHttpResponse;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.ObjectPostProcessor;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.OAuth2AuthorizationServerConfiguration;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationEndpointConfigurer;
 import org.springframework.security.config.annotation.web.configurers.oauth2.server.authorization.OAuth2AuthorizationServerConfigurer;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
-import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.OAuth2AuthorizationServerMetadata;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationResponseType;
 import org.springframework.security.oauth2.core.http.converter.OAuth2AuthorizationServerMetadataHttpMessageConverter;
@@ -37,13 +34,9 @@ import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.authorization.JwtEncodingContext;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenCustomizer;
-import org.springframework.security.oauth2.server.authorization.client.InMemoryRegisteredClientRepository;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
-import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.config.ProviderSettings;
 import org.springframework.security.oauth2.server.authorization.web.OAuth2AuthorizationEndpointFilter;
 import org.springframework.security.oauth2.server.authorization.web.OAuth2AuthorizationServerMetadataEndpointFilter;
-import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.DefaultRedirectStrategy;
 import org.springframework.security.web.authentication.LoginUrlAuthenticationEntryPoint;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
@@ -62,7 +55,6 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -112,99 +104,89 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
                         return object;
                     }
                 }));
-//        http.exceptionHandling().authenticationEntryPoint(new AuthenticationEntryPoint() {
-//            @Override
-//            public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException, ServletException {
-//                log.info("ERROR", authException);
-//            }
-//        });
         OAuth2AuthorizationServerConfigurer<HttpSecurity> authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer<>();
-        authorizationServerConfigurer.authorizationEndpoint(authorizationEndpoint -> authorizationEndpoint.consentPage("/oauth/consent"));
-
-        RequestMatcher endpointsMatcher = authorizationServerConfigurer
-                .getEndpointsMatcher();
+        authorizationServerConfigurer.addObjectPostProcessor(new ObjectPostProcessor<Object>() {
+            @Override
+            public Object postProcess(Object object) {
+                if (object instanceof OAuth2AuthorizationEndpointFilter) {
+                    return oAuth2AuthorizationEndpointFilter((OAuth2AuthorizationEndpointFilter) object);
+                }
+                if (object instanceof OAuth2AuthorizationServerMetadataEndpointFilter) {
+                    return oAuth2AuthorizationServerMetadataEndpointFilter((OAuth2AuthorizationServerMetadataEndpointFilter) object);
+                }
+                return object;
+            }
+        });
         http
-                .requestMatcher(endpointsMatcher)
+                .requestMatcher(authorizationServerConfigurer.getEndpointsMatcher())
                 .authorizeRequests(authorizeRequests ->
                         authorizeRequests.anyRequest().authenticated()
                 )
-                .csrf(csrf -> csrf.ignoringRequestMatchers(endpointsMatcher))
+                .csrf(csrf -> csrf.ignoringRequestMatchers(authorizationServerConfigurer.getEndpointsMatcher()))
                 .apply(authorizationServerConfigurer);
-//       http.formLogin(Customizer.withDefaults());
+    }
 
-//        OAuth2AuthorizationServerConfiguration.applyDefaultSecurity(http);
-//        http
-//                .<OAuth2AuthorizationServerConfigurer<HttpSecurity>>getConfigurer(OAuth2AuthorizationServerConfigurer.class)
-//                .authorizationEndpoint(authorizationEndpointCustomizer -> {
-//                    ((OAuth2AuthorizationEndpointConfigurer)authorizationEndpointCustomizer).consentPage("/jj");
-//                });
-        http
-                .getConfigurer(OAuth2AuthorizationServerConfigurer.class)
-                .addObjectPostProcessor(new ObjectPostProcessor<Object>() {
-                    @Override
-                    public Object postProcess(Object object) {
-                        if (object instanceof OAuth2AuthorizationEndpointFilter) {
-                            Field field = ReflectionUtils.findField(OAuth2AuthorizationEndpointFilter.class, "redirectStrategy");
-                            ReflectionUtils.makeAccessible(field);
-                            ReflectionUtils.setField(field, object, new DefaultRedirectStrategy() {
-                                @Override
-                                public void sendRedirect(HttpServletRequest request, HttpServletResponse response, String url) throws IOException {
-                                    Optional.ofNullable(request.getSession(false)).ifPresent(HttpSession::invalidate);
-                                    SecurityContextHolder.getContext().setAuthentication(null);
-                                    SecurityContextHolder.clearContext();
-                                    super.sendRedirect(request, response, url);
-                                }
-                            });
-                        }
-                        if (object instanceof OAuth2AuthorizationServerMetadataEndpointFilter) {
-                            Field field = ReflectionUtils.findField(OAuth2AuthorizationServerMetadataEndpointFilter.class, "providerSettings");
-                            ReflectionUtils.makeAccessible(field);
-                            ProviderSettings providerSettings = (ProviderSettings) ReflectionUtils.getField(field, object);
-                            RequestMatcher requestMatcher = new AntPathRequestMatcher(OAuth2AuthorizationServerMetadataEndpointFilter.DEFAULT_OAUTH2_AUTHORIZATION_SERVER_METADATA_ENDPOINT_URI, HttpMethod.GET.name());
-                            OAuth2AuthorizationServerMetadataHttpMessageConverter authorizationServerMetadataHttpMessageConverter = new OAuth2AuthorizationServerMetadataHttpMessageConverter();
-                            return new OAuth2AuthorizationServerMetadataEndpointFilter(providerSettings) {
-                                @Override
-                                protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-                                    if (!requestMatcher.matches(request)) {
-                                        filterChain.doFilter(request, response);
-                                        return;
-                                    }
-                                    OAuth2AuthorizationServerMetadata authorizationServerMetadata = OAuth2AuthorizationServerMetadata.builder()
-                                            .issuer(providerSettings.issuer())
-                                            .authorizationEndpoint(UriComponentsBuilder.fromUriString(providerSettings.issuer()).path(providerSettings.authorizationEndpoint()).toUriString())
-                                            .tokenEndpoint(UriComponentsBuilder.fromUriString(providerSettings.issuer()).path(providerSettings.tokenEndpoint()).toUriString())
-                                            .tokenEndpointAuthenticationMethods((authenticationMethods) -> {
-                                                authenticationMethods.add("client_secret_basic");
-                                                authenticationMethods.add("client_secret_post");
-                                            })
-                                            .jwkSetUrl(UriComponentsBuilder.fromUriString(providerSettings.issuer()).path(providerSettings.jwkSetEndpoint()).toUriString())
-                                            .responseType(OAuth2AuthorizationResponseType.CODE.getValue())
-                                            .grantType(AuthorizationGrantType.AUTHORIZATION_CODE.getValue())
-                                            .grantType(AuthorizationGrantType.CLIENT_CREDENTIALS.getValue())
-                                            .grantType(AuthorizationGrantType.REFRESH_TOKEN.getValue())
-                                            .tokenRevocationEndpoint(UriComponentsBuilder.fromUriString(providerSettings.issuer()).path(providerSettings.tokenRevocationEndpoint()).toUriString())
-                                            .tokenRevocationEndpointAuthenticationMethods((authenticationMethods) -> {
-                                                authenticationMethods.add("client_secret_basic");
-                                                authenticationMethods.add("client_secret_post");
-                                            })
-                                            .tokenIntrospectionEndpoint(UriComponentsBuilder.fromUriString(providerSettings.issuer()).path(providerSettings.tokenIntrospectionEndpoint()).toUriString())
-                                            .tokenIntrospectionEndpointAuthenticationMethods((authenticationMethods) -> {
-                                                authenticationMethods.add("client_secret_basic");
-                                                authenticationMethods.add("client_secret_post");
-                                            })
-                                            .codeChallengeMethod("plain")
-                                            .codeChallengeMethod("S256")
-                                            .claim("op_policy_uri", "https://cdn.4sitive.com/policy.html")
-                                            .claim("op_tos_uri", "https://cdn.4sitive.com/tos.html")
-                                            .build();
-                                    ServletServerHttpResponse httpResponse = new ServletServerHttpResponse(response);
-                                    authorizationServerMetadataHttpMessageConverter.write(authorizationServerMetadata, MediaType.APPLICATION_JSON, httpResponse);
-                                }
-                            };
-                        }
-                        return object;
-                    }
-                });
+    OAuth2AuthorizationEndpointFilter oAuth2AuthorizationEndpointFilter(OAuth2AuthorizationEndpointFilter object){
+        Field field = ReflectionUtils.findField(OAuth2AuthorizationEndpointFilter.class, "redirectStrategy");
+        ReflectionUtils.makeAccessible(field);
+        ReflectionUtils.setField(field, object, new DefaultRedirectStrategy() {
+            @Override
+            public void sendRedirect(HttpServletRequest request, HttpServletResponse response, String url) throws IOException {
+                Optional.ofNullable(request.getSession(false)).ifPresent(HttpSession::invalidate);
+                SecurityContextHolder.getContext().setAuthentication(null);
+                SecurityContextHolder.clearContext();
+                super.sendRedirect(request, response, url);
+            }
+        });
+        return object;
+    }
+
+    OAuth2AuthorizationServerMetadataEndpointFilter oAuth2AuthorizationServerMetadataEndpointFilter(OAuth2AuthorizationServerMetadataEndpointFilter object) {
+        Field field = ReflectionUtils.findField(OAuth2AuthorizationServerMetadataEndpointFilter.class, "providerSettings");
+        ReflectionUtils.makeAccessible(field);
+        ProviderSettings providerSettings = (ProviderSettings) ReflectionUtils.getField(field, object);
+        return new OAuth2AuthorizationServerMetadataEndpointFilter(providerSettings) {
+            private RequestMatcher requestMatcher = new AntPathRequestMatcher(OAuth2AuthorizationServerMetadataEndpointFilter.DEFAULT_OAUTH2_AUTHORIZATION_SERVER_METADATA_ENDPOINT_URI, HttpMethod.GET.name());
+            private OAuth2AuthorizationServerMetadataHttpMessageConverter authorizationServerMetadataHttpMessageConverter = new OAuth2AuthorizationServerMetadataHttpMessageConverter();
+
+            @Override
+            protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+                if (!requestMatcher.matches(request)) {
+                    filterChain.doFilter(request, response);
+                    return;
+                }
+                OAuth2AuthorizationServerMetadata authorizationServerMetadata = OAuth2AuthorizationServerMetadata.builder()
+                        .issuer(providerSettings.issuer())
+                        .authorizationEndpoint(UriComponentsBuilder.fromUriString(providerSettings.issuer()).path(providerSettings.authorizationEndpoint()).toUriString())
+                        .tokenEndpoint(UriComponentsBuilder.fromUriString(providerSettings.issuer()).path(providerSettings.tokenEndpoint()).toUriString())
+                        .tokenEndpointAuthenticationMethods((authenticationMethods) -> {
+                            authenticationMethods.add("client_secret_basic");
+                            authenticationMethods.add("client_secret_post");
+                        })
+                        .jwkSetUrl(UriComponentsBuilder.fromUriString(providerSettings.issuer()).path(providerSettings.jwkSetEndpoint()).toUriString())
+                        .responseType(OAuth2AuthorizationResponseType.CODE.getValue())
+                        .grantType(AuthorizationGrantType.AUTHORIZATION_CODE.getValue())
+                        .grantType(AuthorizationGrantType.CLIENT_CREDENTIALS.getValue())
+                        .grantType(AuthorizationGrantType.REFRESH_TOKEN.getValue())
+                        .tokenRevocationEndpoint(UriComponentsBuilder.fromUriString(providerSettings.issuer()).path(providerSettings.tokenRevocationEndpoint()).toUriString())
+                        .tokenRevocationEndpointAuthenticationMethods((authenticationMethods) -> {
+                            authenticationMethods.add("client_secret_basic");
+                            authenticationMethods.add("client_secret_post");
+                        })
+                        .tokenIntrospectionEndpoint(UriComponentsBuilder.fromUriString(providerSettings.issuer()).path(providerSettings.tokenIntrospectionEndpoint()).toUriString())
+                        .tokenIntrospectionEndpointAuthenticationMethods((authenticationMethods) -> {
+                            authenticationMethods.add("client_secret_basic");
+                            authenticationMethods.add("client_secret_post");
+                        })
+                        .codeChallengeMethod("plain")
+                        .codeChallengeMethod("S256")
+                        .claim("op_policy_uri", "https://cdn.4sitive.com/policy.html")
+                        .claim("op_tos_uri", "https://cdn.4sitive.com/tos.html")
+                        .build();
+                ServletServerHttpResponse httpResponse = new ServletServerHttpResponse(response);
+                authorizationServerMetadataHttpMessageConverter.write(authorizationServerMetadata, MediaType.APPLICATION_JSON, httpResponse);
+            }
+        };
     }
 
     @Bean
