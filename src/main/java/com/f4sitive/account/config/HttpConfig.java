@@ -4,11 +4,15 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.SneakyThrows;
 import net.logstash.logback.argument.StructuredArguments;
-import org.apache.http.*;
+import org.apache.http.HttpEntityEnclosingRequest;
+import org.apache.http.HttpException;
+import org.apache.http.HttpHost;
+import org.apache.http.HttpRequest;
+import org.apache.http.HttpRequestInterceptor;
+import org.apache.http.HttpResponseInterceptor;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.TrustAllStrategy;
-import org.apache.http.conn.ssl.TrustStrategy;
 import org.apache.http.entity.ByteArrayEntity;
 import org.apache.http.entity.ContentType;
 import org.apache.http.impl.client.CloseableHttpClient;
@@ -33,14 +37,20 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.util.StreamUtils;
 
+import java.net.InetAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 @Configuration(proxyBeanMethods = false)
 @ConfigurationProperties("http")
@@ -173,6 +183,25 @@ public class HttpConfig {
                             return super.determineProxy(target, request, context);
                         } else {
                             return null;
+                        }
+                    }
+                })
+                .setDnsResolver(host -> {
+                    try {
+                        return CompletableFuture.supplyAsync(() -> {
+                            try {
+                                return InetAddress.getAllByName(host);
+                            } catch (UnknownHostException e) {
+                                throw new CompletionException(e);
+                            }
+                        }).get(queryTimeout.toMillis(), TimeUnit.MILLISECONDS);
+                    } catch (InterruptedException | TimeoutException | ExecutionException e) {
+                        if (e.getCause() instanceof UnknownHostException) {
+                            throw (UnknownHostException) e.getCause();
+                        } else {
+                            UnknownHostException exception = new UnknownHostException(e instanceof TimeoutException ? "DNS timeout " + queryTimeout.toMillis() + " ms" : e.getMessage());
+                            exception.initCause(e.getCause());
+                            throw exception;
                         }
                     }
                 })
