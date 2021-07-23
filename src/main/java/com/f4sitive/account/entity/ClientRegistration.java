@@ -5,7 +5,6 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.DynamicInsert;
 import org.hibernate.annotations.DynamicUpdate;
-import org.hibernate.annotations.GenericGenerator;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -16,9 +15,7 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 import javax.persistence.*;
 import java.io.Serializable;
 import java.time.Instant;
-import java.util.LinkedHashSet;
 import java.util.Optional;
-import java.util.Set;
 
 @DynamicInsert
 @DynamicUpdate
@@ -27,22 +24,13 @@ import java.util.Set;
 @Setter
 @Entity
 @NoArgsConstructor
-@Table(uniqueConstraints = @UniqueConstraint(name = "group_ux_name", columnNames = {"name"}))
-public class Group implements Auditable<String, String, Instant>, Serializable {
+@Table(name = "oauth2_client_registration")
+public class ClientRegistration implements Auditable<String, String, Instant>, Serializable {
     private static final long serialVersionUID = 1L;
+    public static final int ID_LENGTH = 100;
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY, generator = "generator")
-    @GenericGenerator(name = "generator", strategy = "uuid2")
-    @Column(length = 36)
+    @Column(length = ClientRegistration.ID_LENGTH, nullable = false)
     private String id;
-
-    @Column(length = 200, nullable = false)
-    private String name;
-
-    @ElementCollection(fetch = FetchType.EAGER)
-    @JoinTable(name = "group_authority", joinColumns = @JoinColumn(foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)))
-    @Column(name = "name", length = 200)
-    private Set<String> authority = new LinkedHashSet<>();
 
     @Version
     @Column(nullable = false, columnDefinition = "int default 0")

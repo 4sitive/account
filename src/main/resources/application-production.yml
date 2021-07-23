@@ -1,6 +1,9 @@
 spring:
   datasource:
-    url: jdbc:mysql://4sitive.mysql.database.azure.com:3306/daymotion?useSSL=true&requireSSL=false
-    username: sitive4@4sitive
+    url: jdbc:mysql://4sitive.mysql.database.azure.com:3306/daymotion?createDatabaseIfNotExist=true&allowMultiQueries=true&useUnicode=true&connectTimeout=2000&socketTimeout=10000&autoReconnect=true&autoReconnectForPools=true&useSSL=false&serverZoneId=Asia/Seoul&characterEncoding=utf8
+    username: db_admin
   redis:
     host: 4sitive.redis.cache.windows.net
+  sql:
+    init:
+      mode: never

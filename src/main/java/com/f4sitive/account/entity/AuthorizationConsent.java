@@ -2,6 +2,8 @@ package com.f4sitive.account.entity;
 
 import com.f4sitive.account.converter.SetToCommaDelimitedStringConverter;
 import lombok.*;
+import org.hibernate.annotations.DynamicInsert;
+import org.hibernate.annotations.DynamicUpdate;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -16,40 +18,25 @@ import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
 
+@DynamicInsert
+@DynamicUpdate
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
 @Entity
 @NoArgsConstructor
-@AllArgsConstructor
 @Table(name = "oauth2_authorization_consent")
 public class AuthorizationConsent implements Auditable<String, AuthorizationConsent.ID, Instant>, Serializable {
+    private static final long serialVersionUID = 1L;
     @EmbeddedId
     private AuthorizationConsent.ID id = new AuthorizationConsent.ID();
-
-    @Getter
-    @Setter
-    @AllArgsConstructor
-    @NoArgsConstructor
-    @ToString(callSuper = false, onlyExplicitlyIncluded = true)
-    @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
-    @Embeddable
-    public static class ID implements Serializable {
-        @ToString.Include
-        @Column(name = "registered_client_id")
-        private String registeredClientId;
-
-        @ToString.Include
-        @Column(name = "principal_name")
-        private String userId;
-    }
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "principal_name", insertable = false, updatable = false, foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
     private User user;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(insertable = false, updatable = false, foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
+    @JoinColumn(name = "registered_client_id", insertable = false, updatable = false, foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
     private RegisteredClient registeredClient;
 
     @Lob
@@ -57,11 +44,30 @@ public class AuthorizationConsent implements Auditable<String, AuthorizationCons
     @Convert(converter = SetToCommaDelimitedStringConverter.class)
     private Set<String> authorities = new LinkedHashSet<>();
 
+    @Getter
+    @Setter
+    @ToString(callSuper = false, onlyExplicitlyIncluded = true)
+    @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
+    @Embeddable
+    public static class ID implements Serializable {
+        private static final long serialVersionUID = 1L;
+        @ToString.Include
+        @Column(name = "registered_client_id", length = RegisteredClient.ID_LENGTH)
+        private String registeredClientId;
+
+        @ToString.Include
+        @Column(name = "principal_name", length = User.ID_LENGTH)
+        private String userId;
+    }
+
     @Version
-    private Long version;
+    @Column(nullable = false, columnDefinition = "int default 0")
+    private int version;
     @CreatedBy
+    @Column(length = User.ID_LENGTH)
     private String createdBy;
     @LastModifiedBy
+    @Column(length = User.ID_LENGTH)
     private String lastModifiedBy;
     @CreatedDate
     private Instant createdDate;

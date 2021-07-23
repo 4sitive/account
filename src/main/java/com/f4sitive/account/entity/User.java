@@ -28,22 +28,15 @@ import java.util.Set;
 @Table(name = "user", uniqueConstraints = @UniqueConstraint(name = "user_ux_username", columnNames = {"username"}))
 public class User implements Auditable<String, String, Instant>, Serializable {
     private static final long serialVersionUID = 1L;
+    public static final int ID_LENGTH = 36;
     @Id
-//    @ColumnDefault("random_uuid()")
-//    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @GeneratedValue(strategy = GenerationType.IDENTITY, generator = "generator")
     @GenericGenerator(name = "generator", strategy = "uuid2")
-    @Column(length = 36)
+    @Column(length = User.ID_LENGTH)
     private String id;
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @JoinTable(name = "user_authority", joinColumns = @JoinColumn(name = "username", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)))
-    private Set<String> authority = new LinkedHashSet<>();
-
-    @Column(length = 200)
-    private String name;
-
-    private String displayName;
+    @Column(length = 200, nullable = false)
+    private String username;
     @Lob
     @Basic
     private String password;
@@ -51,32 +44,42 @@ public class User implements Auditable<String, String, Instant>, Serializable {
     private boolean accountLocked;
     private boolean credentialsExpired;
     private boolean disabled;
+    @Column(length = 200)
+    private String name;
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @JoinTable(name = "user_authority", joinColumns = @JoinColumn(foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)))
+    @Column(name = "name", length = 200)
+    private Set<String> authority = new LinkedHashSet<>();
+
     @Lob
     @Basic
     private String introduce;
-    @Column(length = 200)
-    private String username;
     private String email;
     private String image;
-    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private Set<AuthorizedClient> authorizedClients = new HashSet<>();
+
+    @ManyToMany(cascade = CascadeType.ALL)
+    @JoinTable(name = "group_member",
+            joinColumns = @JoinColumn(foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)),
+            inverseJoinColumns = @JoinColumn(foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)),
+            foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT),
+            inverseForeignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)
+    )
+    private Set<Group> group = new LinkedHashSet<>();
 
     @Version
-    private Long version;
+    @Column(nullable = false, columnDefinition = "int default 0")
+    private int version;
     @CreatedBy
+    @Column(length = User.ID_LENGTH)
     private String createdBy;
     @LastModifiedBy
+    @Column(length = User.ID_LENGTH)
     private String lastModifiedBy;
     @CreatedDate
     private Instant createdDate;
     @LastModifiedDate
     private Instant lastModifiedDate;
-
-    public static User username(String username) {
-        User user = new User();
-        user.setUsername(username);
-        return user;
-    }
 
     public static User of(UserDetails userDetails) {
         User user = new User();

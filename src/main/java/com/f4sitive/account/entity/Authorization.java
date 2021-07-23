@@ -5,7 +5,8 @@ import com.f4sitive.account.converter.SetToCommaDelimitedStringConverter;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.DynamicInsert;
+import org.hibernate.annotations.DynamicUpdate;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -18,6 +19,8 @@ import java.io.Serializable;
 import java.time.Instant;
 import java.util.*;
 
+@DynamicInsert
+@DynamicUpdate
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
@@ -25,6 +28,7 @@ import java.util.*;
 @NoArgsConstructor
 @Table(name = "oauth2_authorization")
 public class Authorization implements Auditable<String, String, Instant>, Serializable {
+    private static final long serialVersionUID = 1L;
     @Id
     @Column(length = 100, nullable = false)
     private String id;
@@ -71,9 +75,11 @@ public class Authorization implements Auditable<String, String, Instant>, Serial
 
     @Lob
     private byte[] authorizationCodeValue;
+
     public String getAuthorizationCode() {
         return Optional.ofNullable(authorizationCodeValue).map(String::new).orElse(null);
     }
+
     private Instant authorizationCodeIssuedAt;
     private Instant authorizationCodeExpiresAt;
     @Convert(converter = MapToJsonStringConverter.class)
@@ -82,9 +88,11 @@ public class Authorization implements Auditable<String, String, Instant>, Serial
 
     @Lob
     private byte[] oidcIdTokenValue;
+
     public String getOidcIdToken() {
         return Optional.ofNullable(authorizationCodeValue).map(String::new).orElse(null);
     }
+
     private Instant oidcIdTokenIssuedAt;
     private Instant oidcIdTokenExpiresAt;
     @Convert(converter = MapToJsonStringConverter.class)
@@ -94,9 +102,11 @@ public class Authorization implements Auditable<String, String, Instant>, Serial
 
     @Lob
     private byte[] refreshTokenValue;
+
     public String getRefreshToken() {
         return Optional.ofNullable(authorizationCodeValue).map(String::new).orElse(null);
     }
+
     private Instant refreshTokenIssuedAt;
     private Instant refreshTokenExpiresAt;
     @Convert(converter = MapToJsonStringConverter.class)
@@ -105,17 +115,16 @@ public class Authorization implements Auditable<String, String, Instant>, Serial
     private Map<String, Object> refreshTokenMetadata = new LinkedHashMap<>();
 
     @Version
-    private Long version;
-
+    @Column(nullable = false, columnDefinition = "int default 0")
+    private int version;
     @CreatedBy
+    @Column(length = User.ID_LENGTH)
     private String createdBy;
-
     @LastModifiedBy
+    @Column(length = User.ID_LENGTH)
     private String lastModifiedBy;
-
     @CreatedDate
     private Instant createdDate;
-
     @LastModifiedDate
     private Instant lastModifiedDate;
 

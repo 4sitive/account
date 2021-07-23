@@ -1,9 +1,9 @@
 package com.f4sitive.account.entity;
 
 import com.f4sitive.account.converter.SetToCommaDelimitedStringConverter;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
+import org.hibernate.annotations.DynamicInsert;
+import org.hibernate.annotations.DynamicUpdate;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -17,27 +17,29 @@ import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.Optional;
 import java.util.Set;
-import java.util.UUID;
 
+@DynamicInsert
+@DynamicUpdate
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
 @Entity
 @NoArgsConstructor
 @Table(name = "oauth2_authorized_client", uniqueConstraints = @UniqueConstraint(name = "authorized_client_ux_client_registration_id_principal_name", columnNames = {"client_registration_id", "principal_name"}))
-public class AuthorizedClient implements Auditable<String, UUID, Instant>, Serializable {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-//    @GeneratedValue(strategy = GenerationType.IDENTITY, generator = "generator")
-//    @GenericGenerator(name = "generator", strategy = "uuid2")
-    @Column(length = 36)
-    private UUID id;
+public class AuthorizedClient implements Auditable<String, AuthorizedClient.ID, Instant>, Serializable {
+    private static final long serialVersionUID = 1L;
+    @EmbeddedId
+    private AuthorizedClient.ID id = new AuthorizedClient.ID();
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "principal_name", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
+    @JoinColumn(insertable = false, updatable = false, foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
+    private ClientRegistration clientRegistration;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "principal_name", insertable = false, updatable = false, foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
     private User user;
-    @Column(name = "client_registration_id")
-    private String clientRegistrationId;
+
+    @Column(length = 50)
     private String accessTokenType;
     private Instant accessTokenExpiresAt;
 
@@ -55,11 +57,30 @@ public class AuthorizedClient implements Auditable<String, UUID, Instant>, Seria
     @Basic
     private Set<String> accessTokenScopes = new LinkedHashSet<>();
 
+    @Getter
+    @Setter
+    @ToString(callSuper = false, onlyExplicitlyIncluded = true)
+    @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
+    @Embeddable
+    public static class ID implements Serializable {
+        private static final long serialVersionUID = 1L;
+        @ToString.Include
+        @Column(name = "client_registration_id", length = ClientRegistration.ID_LENGTH)
+        private String clientRegistrationId;
+
+        @ToString.Include
+        @Column(name = "principal_name", length = User.ID_LENGTH)
+        private String userId;
+    }
+
     @Version
-    private Long version;
+    @Column(nullable = false, columnDefinition = "int default 0")
+    private int version;
     @CreatedBy
+    @Column(length = User.ID_LENGTH)
     private String createdBy;
     @LastModifiedBy
+    @Column(length = User.ID_LENGTH)
     private String lastModifiedBy;
     @CreatedDate
     private Instant createdDate;

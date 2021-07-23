@@ -49,8 +49,8 @@
                         "spanId":"%replace(%responseHeader{spanId}){'null',''}",
                         "parentId":"%replace(%responseHeader{parentId}){'null',''}",
                         "thread_name":"%threadName",
-                        "request_content":"#tryJson{%requestContent}",
-                        "response_content":"#tryJson{%responseContent}"
+                        "request_content":"%.-2048requestContent",
+                        "response_content":"%.-2048responseContent"
                         }
                     </pattern>
                 </pattern>

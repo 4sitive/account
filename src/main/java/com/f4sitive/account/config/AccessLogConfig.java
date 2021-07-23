@@ -36,7 +36,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.security.Principal;
 import java.util.*;
-import java.util.stream.Stream;
 
 @Slf4j
 @ManagementContextConfiguration(proxyBeanMethods = false)
@@ -93,15 +92,23 @@ public class AccessLogConfig {
     }
 
     @SneakyThrows
-    @Bean(initMethod = "start", destroyMethod = "stop")
-    AccessContext accessContext(ApplicationContext applicationContext) {
+    @Bean
+    WebServerFactoryCustomizer<ConfigurableTomcatWebServerFactory> webServerFactoryCustomizer(ApplicationContext applicationContext) {
         AccessContext context = new AccessContext();
-        Arrays.stream(applicationContext.getEnvironment().getActiveProfiles())
-                .forEach(profile -> context.putProperty(profile, profile));
+        Arrays.stream(applicationContext.getEnvironment().getActiveProfiles()).forEach(profile -> context.putProperty(profile, profile));
         JoranConfigurator configurator = new JoranConfigurator();
         configurator.setContext(context);
         configurator.doConfigure(ResourceUtils.getURL("classpath:logback-access-spring.xml"));
-        return context;
+        context.start();
+        return factory -> factory.addEngineValves(new AccessLogValve() {
+            @Override
+            public void log(Request request, Response response, long time) {
+                ServerAdapter adapter = serverAdapter(request, response);
+                AccessEvent event = accessEvent(request, response, adapter);
+                event.setThreadName(Thread.currentThread().getName());
+                context.callAppenders(event);
+            }
+        });
     }
 
     ServerAdapter serverAdapter(Request request, Response response) {
@@ -192,13 +199,18 @@ public class AccessLogConfig {
                 if (requestHeaderMap == null) {
                     requestHeaderMap = Optional.ofNullable(getRequest())
                             .map(HttpServletRequest::getHeaderNames)
-                            .map(headerNames -> Collections.list(headerNames).stream())
-                            .orElse(Stream.empty())
+                            .map(Collections::list)
+                            .<Set<String>>map(LinkedHashSet::new)
+                            .orElse(Collections.emptySet())
+                            .stream()
                             .collect(() -> new TreeMap<>(String.CASE_INSENSITIVE_ORDER),
-                                    (map, headerName) -> map.put(headerName, String.join(",", Optional.ofNullable(getRequest())
-                                            .map(request -> request.getHeaders(headerName))
-                                            .map(Collections::list)
-                                            .orElseGet(ArrayList::new))),
+                                    (map, headerName) -> map.put(
+                                            headerName,
+                                            String.join(",", Optional.ofNullable(getRequest())
+                                                    .map(request -> request.getHeaders(headerName))
+                                                    .<List<String>>map(Collections::list)
+                                                    .orElse(Collections.emptyList()))
+                                    ),
                                     Map::putAll);
                 }
             }
@@ -221,28 +233,20 @@ public class AccessLogConfig {
                 if (requestParameterMap == null) {
                     requestParameterMap = Optional.ofNullable(getRequest())
                             .map(HttpServletRequest::getParameterNames)
-                            .map(parameterName -> Collections.list(parameterName).stream())
-                            .orElse(Stream.empty())
+                            .map(Collections::list)
+                            .<Set<String>>map(LinkedHashSet::new)
+                            .orElse(Collections.emptySet())
+                            .stream()
                             .collect(LinkedHashMap::new,
-                                    (map, parameterName) -> map.put(parameterName, Optional.ofNullable(getRequest())
-                                            .map(request -> request.getParameterValues(parameterName))
-                                            .orElse(new String[0])),
+                                    (map, parameterName) -> map.put(
+                                            parameterName,
+                                            Optional.ofNullable(getRequest())
+                                                    .map(request -> request.getParameterValues(parameterName))
+                                                    .orElse(null)
+                                    ),
                                     Map::putAll);
                 }
             }
         };
-    }
-
-    @Bean
-    WebServerFactoryCustomizer<ConfigurableTomcatWebServerFactory> webServerFactoryCustomizer(AccessContext accessContext) {
-        return factory -> factory.addEngineValves(new AccessLogValve() {
-            @Override
-            public void log(Request request, Response response, long time) {
-                ServerAdapter adapter = serverAdapter(request, response);
-                AccessEvent event = accessEvent(request, response, adapter);
-                event.setThreadName(Thread.currentThread().getName());
-                accessContext.callAppenders(event);
-            }
-        });
     }
 }

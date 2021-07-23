@@ -5,7 +5,8 @@ import com.f4sitive.account.converter.SetToCommaDelimitedStringConverter;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.DynamicInsert;
+import org.hibernate.annotations.DynamicUpdate;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -18,19 +19,22 @@ import java.io.Serializable;
 import java.time.Instant;
 import java.util.*;
 
+@DynamicInsert
+@DynamicUpdate
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
 @Entity
 @NoArgsConstructor
-@Table(name = "oauth2_registered_client")
+@Table(name = "oauth2_registered_client", uniqueConstraints = @UniqueConstraint(name = "registered_client_ux_client_id", columnNames = {"client_id"}))
 public class RegisteredClient implements Auditable<String, String, Instant>, Serializable {
+    private static final long serialVersionUID = 1L;
+    public static final int ID_LENGTH = 100;
     @Id
-    @Column(length = 100, nullable = false)
+    @Column(length = RegisteredClient.ID_LENGTH, nullable = false)
     private String id;
-    @Column(length = 100, nullable = false)
+    @Column(name = "client_id", length = 100, nullable = false)
     private String clientId;
-    @ColumnDefault("CURRENT_TIMESTAMP")
     @Column(nullable = false)
     private Instant clientIdIssuedAt;
     @Lob
@@ -56,24 +60,26 @@ public class RegisteredClient implements Auditable<String, String, Instant>, Ser
     @Convert(converter = SetToCommaDelimitedStringConverter.class)
     @Lob
     @Basic
-    @Column(nullable = false)
     private Set<String> scopes = new LinkedHashSet<>();
     @Convert(converter = MapToJsonStringConverter.class)
     @Lob
     @Basic
-    @Column(nullable = false)
+    @Column(nullable = false, updatable = false)
     private Map<String, Object> clientSettings = new LinkedHashMap<>();
     @Convert(converter = MapToJsonStringConverter.class)
     @Lob
     @Basic
-    @Column(nullable = false)
+    @Column(nullable = false, updatable = false)
     private Map<String, Object> tokenSettings = new LinkedHashMap<>();
 
     @Version
-    private Long version;
+    @Column(nullable = false, columnDefinition = "int default 0")
+    private long version;
     @CreatedBy
+    @Column(length = User.ID_LENGTH)
     private String createdBy;
     @LastModifiedBy
+    @Column(length = User.ID_LENGTH)
     private String lastModifiedBy;
     @CreatedDate
     private Instant createdDate;
