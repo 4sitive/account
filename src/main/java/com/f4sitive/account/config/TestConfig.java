@@ -30,7 +30,8 @@ class TestConfig {
                                             .build(Collections.emptyMap())
                                             .getSchemeSpecificPart())
                                     .host(mySqlContainer.getHost())
-                                    .port(mySqlContainer.getMappedPort(MySQLContainer.MYSQL_PORT)))
+                                    .port(mySqlContainer.getMappedPort(MySQLContainer.MYSQL_PORT))
+                                    .replacePath(mySqlContainer.getDatabaseName()))
                             .orElseGet(() -> UriComponentsBuilder
                                     .fromUriString(UriComponentsBuilder
                                             .fromUriString(mySqlContainer.getJdbcUrl())
@@ -38,7 +39,7 @@ class TestConfig {
                                             .getSchemeSpecificPart()));
                     ((DataSourceProperties) bean).setUrl(UriComponentsBuilder.newInstance()
                             .scheme("jdbc")
-                            .schemeSpecificPart(ssp.replacePath(mySqlContainer.getDatabaseName()).toUriString())
+                            .schemeSpecificPart(ssp.toUriString())
                             .toUriString());
                     ((DataSourceProperties) bean).setUsername(mySqlContainer.getUsername());
                     ((DataSourceProperties) bean).setPassword(mySqlContainer.getPassword());
