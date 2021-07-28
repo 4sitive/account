@@ -4,6 +4,7 @@ spring:
   profiles:
     group:
       default: LOGGING_CONSOLE,LOGGING_CONSOLE_JSON
+      production: LOGGING_CONSOLE_JSON
   security:
     oauth2:
       client:
@@ -93,17 +94,8 @@ spring:
 server:
   forward-headers-strategy: framework
 #openssl rsa -in private.pem -pubout -out public.pem
-cors:
-  mapping:
-    '[/**]':
-      allowed-origin-patterns: '*'
-      allow-credentials: true
-      allowed-headers: '*'
-      allowed-methods: '*'
 
 logging:
-  level:
-    SQL: trace
   file:
     path: ${LOG_PATH:.}
     name: ${logging.file.path}/${spring.application.name}

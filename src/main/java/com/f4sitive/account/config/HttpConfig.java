@@ -11,6 +11,8 @@ import org.apache.http.HttpRequest;
 import org.apache.http.HttpRequestInterceptor;
 import org.apache.http.HttpResponseInterceptor;
 import org.apache.http.client.config.RequestConfig;
+import org.apache.http.conn.DnsResolver;
+import org.apache.http.conn.routing.HttpRoutePlanner;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.conn.ssl.TrustAllStrategy;
 import org.apache.http.entity.ByteArrayEntity;
@@ -54,7 +56,7 @@ import java.util.concurrent.TimeoutException;
 
 @Configuration(proxyBeanMethods = false)
 @ConfigurationProperties("http")
-public class HttpConfig {
+class HttpConfig {
     private final Logger log = LoggerFactory.getLogger("HTTP");
     @Getter
     private final Proxy proxy = new Proxy();
@@ -79,7 +81,7 @@ public class HttpConfig {
 
     @SneakyThrows
     @Bean
-    public CloseableHttpClient httpClient() {
+    CloseableHttpClient httpClient() {
         String elapsedTimeName = "elapsed_time";
         String requestContentName = "request_content";
         String responseContentName = "response_content";
@@ -100,8 +102,8 @@ public class HttpConfig {
             }
         };
         HttpResponseInterceptor httpResponseInterceptorLast = (response, context) -> {
-            ByteArrayEntity entity = new ByteArrayEntity(EntityUtils.toByteArray(response.getEntity()),
-                    ContentType.get(response.getEntity()));
+            byte[] content = EntityUtils.toByteArray(response.getEntity());
+            ByteArrayEntity entity = new ByteArrayEntity(content, ContentType.get(response.getEntity()));
             EntityUtils.updateEntity(response, entity);
             context.setAttribute(responseContentName, EntityUtils.toString(entity));
             context.setAttribute(statusCodeName, response.getStatusLine().getStatusCode());
@@ -110,6 +112,8 @@ public class HttpConfig {
                             (headers, header) -> headers.add(header.getName(), header.getValue()),
                             HttpHeaders::putAll));
         };
+        HttpRoutePlanner routePlanner = httpRoutePlanner();
+        DnsResolver dnsResolver = dnsResolver();
         return new HttpClientBuilder() {
             @Override
             protected ClientExecChain decorateProtocolExec(ClientExecChain protocolExec) {
@@ -129,6 +133,12 @@ public class HttpConfig {
                                 .orElse(true);
                         Throwable throwable = clientContext.getAttribute(throwableName, Throwable.class);
                         if (isLogEnabled(elapsedTime, error, throwable)) {
+                            StringBuilder requestedUrl = new StringBuilder()
+                                    .append(request.getOriginal().getRequestLine().getMethod())
+                                    .append(" ")
+                                    .append(request.getOriginal().getRequestLine().getUri())
+                                    .append(" ")
+                                    .append(request.getOriginal().getRequestLine().getProtocolVersion());
                             String requestContent = Optional.ofNullable(clientContext
                                     .getAttribute(requestContentName, String.class))
                                     .orElseGet(String::new);
@@ -141,12 +151,10 @@ public class HttpConfig {
                             HttpHeaders responseHeaders = Optional.ofNullable(clientContext
                                     .getAttribute(responseHeadersName, HttpHeaders.class))
                                     .orElseGet(HttpHeaders::new);
-                            log.info("{},{},{},{},{},{},{},{}",
+
+                            log.info("{},{},{},{},{},{},{}",
                                     StructuredArguments.keyValue(elapsedTimeName, elapsedTime),
-                                    StructuredArguments.keyValue("method", request.getOriginal().getRequestLine()
-                                            .getMethod()),
-                                    StructuredArguments.keyValue("requested_uri", request.getOriginal().getRequestLine()
-                                            .getUri()),
+                                    StructuredArguments.keyValue("requested_url", requestedUrl),
                                     StructuredArguments.keyValue(statusCodeName, statusCode),
                                     StructuredArguments.keyValue(requestHeadersName, requestHeaders),
                                     StructuredArguments.keyValue(responseHeadersName, responseHeaders),
@@ -173,38 +181,8 @@ public class HttpConfig {
                 .setMaxConnTotal(Integer.MAX_VALUE)
                 .setMaxConnPerRoute(Integer.MAX_VALUE)
                 .setConnectionTimeToLive(lifeTime.toMillis(), TimeUnit.MILLISECONDS)
-                .setRoutePlanner(new DefaultProxyRoutePlanner(new HttpHost(proxy.getHost(), proxy.getPort())) {
-                    @Override
-                    protected HttpHost determineProxy(
-                            HttpHost target,
-                            HttpRequest request,
-                            HttpContext context) throws HttpException {
-                        if (proxy.matches(target.getHostName())) {
-                            return super.determineProxy(target, request, context);
-                        } else {
-                            return null;
-                        }
-                    }
-                })
-                .setDnsResolver(host -> {
-                    try {
-                        return CompletableFuture.supplyAsync(() -> {
-                            try {
-                                return InetAddress.getAllByName(host);
-                            } catch (UnknownHostException e) {
-                                throw new CompletionException(e);
-                            }
-                        }).get(queryTimeout.toMillis(), TimeUnit.MILLISECONDS);
-                    } catch (InterruptedException | TimeoutException | ExecutionException e) {
-                        if (e.getCause() instanceof UnknownHostException) {
-                            throw (UnknownHostException) e.getCause();
-                        } else {
-                            UnknownHostException exception = new UnknownHostException(e instanceof TimeoutException ? "DNS timeout " + queryTimeout.toMillis() + " ms" : e.getMessage());
-                            exception.initCause(e.getCause());
-                            throw exception;
-                        }
-                    }
-                })
+                .setRoutePlanner(routePlanner)
+                .setDnsResolver(dnsResolver)
                 .useSystemProperties()
                 .disableRedirectHandling()
                 .disableAutomaticRetries()
@@ -216,8 +194,51 @@ public class HttpConfig {
                 .build();
     }
 
+    HttpRoutePlanner httpRoutePlanner() {
+        return new DefaultProxyRoutePlanner(new HttpHost(proxy.getHost(), proxy.getPort())) {
+            @Override
+            protected HttpHost determineProxy(
+                    HttpHost target,
+                    HttpRequest request,
+                    HttpContext context) throws HttpException {
+                if (proxy.matches(target.getHostName())) {
+                    return super.determineProxy(target, request, context);
+                } else {
+                    return null;
+                }
+            }
+        };
+    }
+
+    DnsResolver dnsResolver() {
+        return host -> {
+            try {
+                return CompletableFuture.supplyAsync(() -> {
+                    try {
+                        return InetAddress.getAllByName(host);
+                    } catch (UnknownHostException e) {
+                        throw new CompletionException(e);
+                    }
+                }).get(queryTimeout.toMillis(), TimeUnit.MILLISECONDS);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new UnknownHostException(host + ": " + e.getMessage());
+            } catch (ExecutionException e) {
+                if (e.getCause() instanceof UnknownHostException) {
+                    throw (UnknownHostException) e.getCause();
+                } else {
+                    UnknownHostException exception = new UnknownHostException(host);
+                    exception.initCause(e.getCause());
+                    throw exception;
+                }
+            } catch (TimeoutException e) {
+                throw new UnknownHostException(host + ": DNS timeout " + queryTimeout.toMillis() + " ms");
+            }
+        };
+    }
+
     @Bean
-    public HttpClient reactiveHttpClient() {
+    HttpClient reactiveHttpClient() {
         HttpClient httpClient = new HttpClient(new SslContextFactory.Client(true)) {
             @SneakyThrows
             String content(ByteBuffer byteBuffer) {
@@ -246,6 +267,12 @@ public class HttpConfig {
                             .orElse(true);
                     Throwable throwable = complete.getFailure();
                     if (isLogEnabled(elapsedTime, error, throwable)) {
+                        StringBuilder requestedUrl = new StringBuilder()
+                                .append(complete.getRequest().getMethod())
+                                .append(" ")
+                                .append(complete.getRequest().getURI())
+                                .append(" ")
+                                .append(complete.getRequest().getVersion());
                         String requestContent = Optional.ofNullable((String) complete
                                 .getRequest().getAttributes().get(requestContentName))
                                 .orElseGet(String::new);
@@ -260,10 +287,9 @@ public class HttpConfig {
                                 .collect(HttpHeaders::new,
                                         (headers, httpField) -> headers.add(httpField.getName(), httpField.getValue()),
                                         HttpHeaders::putAll);
-                        log.info("{},{},{},{},{},{},{},{}",
+                        log.info("{},{},{},{},{},{},{}",
                                 StructuredArguments.keyValue(elapsedTimeName, elapsedTime),
-                                StructuredArguments.keyValue("method", complete.getRequest().getMethod()),
-                                StructuredArguments.keyValue("requested_uri", complete.getRequest().getURI()),
+                                StructuredArguments.keyValue("requested_url", requestedUrl),
                                 StructuredArguments.keyValue("status_code", statusCode),
                                 StructuredArguments.keyValue("request_headers", requestHeaders),
                                 StructuredArguments.keyValue("response_headers", responseHeaders),
@@ -292,7 +318,7 @@ public class HttpConfig {
 
     @Getter
     @Setter
-    public static class Proxy {
+    protected static class Proxy {
         private String host = "localhost";
         private int port = -1;
         private Set<String> included = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);

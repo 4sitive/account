@@ -19,7 +19,7 @@ services:
         -Duser.country=KR
         -Duser.language=ko
         -Duser.timezone=Asia/Seoul
-      SPRING_PROFILES_ACTIVE: production,LOGING_FILE,LOGGING_CONSOLE_JSON
+      SPRING_PROFILES_ACTIVE: production
       LOG_PATH: /workspace/log
       SERVER_PORT: 18080
       MANAGEMENT_SERVER_PORT: 18081

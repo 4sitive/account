@@ -7,7 +7,6 @@ import ch.qos.logback.access.spi.AccessEvent;
 import ch.qos.logback.access.spi.ServerAdapter;
 import ch.qos.logback.access.tomcat.TomcatServerAdapter;
 import lombok.SneakyThrows;
-import lombok.extern.slf4j.Slf4j;
 import org.apache.catalina.AccessLog;
 import org.apache.catalina.Globals;
 import org.apache.catalina.connector.Request;
@@ -17,8 +16,8 @@ import org.springframework.boot.actuate.autoconfigure.web.ManagementContextConfi
 import org.springframework.boot.web.embedded.tomcat.ConfigurableTomcatWebServerFactory;
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
-import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
+import org.springframework.core.env.Environment;
 import org.springframework.lang.NonNull;
 import org.springframework.util.ResourceUtils;
 import org.springframework.web.context.request.async.WebAsyncUtils;
@@ -35,9 +34,23 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.security.Principal;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.function.BooleanSupplier;
 
-@Slf4j
+/**
+ * src/main/resources/META-INF/spring.factories
+ * <p>
+ * org.springframework.boot.actuate.autoconfigure.web.ManagementContextConfiguration=AccessLogConfig
+ */
 @ManagementContextConfiguration(proxyBeanMethods = false)
 public class AccessLogConfig {
     @Bean
@@ -45,6 +58,7 @@ public class AccessLogConfig {
         FilterRegistrationBean<Filter> filterRegistrationBean = new FilterRegistrationBean<>((request, response, chain) -> {
             HttpServletRequest requestToUse = (HttpServletRequest) request;
             Optional.ofNullable(requestToUse.getUserPrincipal()).map(Principal::getName).ifPresent(remoteUser -> request.setAttribute("org.apache.catalina.AccessLog.RemoteUser", remoteUser));
+            BooleanSupplier contentCaching = () -> request.getAttribute(ShallowEtagHeaderFilter.class.getName() + ".STREAMING") == null;
             HttpServletResponse responseToUse = (HttpServletResponse) response;
             if (!DispatcherType.ASYNC.equals(request.getDispatcherType())) {
                 if (!(request instanceof ContentCachingRequestWrapper)) {
@@ -55,13 +69,13 @@ public class AccessLogConfig {
                         @Override
                         @NonNull
                         public ServletOutputStream getOutputStream() throws IOException {
-                            return request.getAttribute(ShallowEtagHeaderFilter.class.getName() + ".STREAMING") == null ? super.getOutputStream() : getResponse().getOutputStream();
+                            return contentCaching.getAsBoolean() ? super.getOutputStream() : getResponse().getOutputStream();
                         }
 
                         @Override
                         @NonNull
                         public PrintWriter getWriter() throws IOException {
-                            return request.getAttribute(ShallowEtagHeaderFilter.class.getName() + ".STREAMING") == null ? super.getWriter() : getResponse().getWriter();
+                            return contentCaching.getAsBoolean() ? super.getWriter() : getResponse().getWriter();
                         }
                     };
                 }
@@ -79,7 +93,7 @@ public class AccessLogConfig {
                         request.setAttribute(AccessConstants.LB_INPUT_BUFFER, content);
                     }
                     ContentCachingResponseWrapper contentCachingResponse = WebUtils.getNativeResponse(responseToUse, ContentCachingResponseWrapper.class);
-                    if (contentCachingResponse != null && request.getAttribute(ShallowEtagHeaderFilter.class.getName() + ".STREAMING") == null) {
+                    if (contentCachingResponse != null && contentCaching.getAsBoolean()) {
                         request.setAttribute(AccessConstants.LB_OUTPUT_BUFFER, contentCachingResponse.getContentAsByteArray());
                         contentCachingResponse.copyBodyToResponse();
                     }
@@ -93,9 +107,13 @@ public class AccessLogConfig {
 
     @SneakyThrows
     @Bean
-    WebServerFactoryCustomizer<ConfigurableTomcatWebServerFactory> webServerFactoryCustomizer(ApplicationContext applicationContext) {
+    WebServerFactoryCustomizer<ConfigurableTomcatWebServerFactory> webServerFactoryCustomizer(Environment environment) {
         AccessContext context = new AccessContext();
-        Arrays.stream(applicationContext.getEnvironment().getActiveProfiles()).forEach(profile -> context.putProperty(profile, profile));
+        List<String> profiles = new ArrayList<>(Arrays.asList(environment.getActiveProfiles()));
+        if (profiles.isEmpty()) {
+            profiles.addAll(Arrays.asList(environment.getDefaultProfiles()));
+        }
+        profiles.forEach(profile -> context.putProperty(profile, profile));
         JoranConfigurator configurator = new JoranConfigurator();
         configurator.setContext(context);
         configurator.doConfigure(ResourceUtils.getURL("classpath:logback-access-spring.xml"));
@@ -130,8 +148,7 @@ public class AccessLogConfig {
 
             @Override
             public Map<String, String> buildResponseHeaderMap() {
-                return new LinkedHashSet<>(response.getHeaderNames())
-                        .stream()
+                return new LinkedHashSet<>(response.getHeaderNames()).stream()
                         .collect(LinkedHashMap::new,
                                 (map, headerName) -> map.put(headerName, String.join(",", response.getHeaders(headerName))),
                                 Map::putAll);

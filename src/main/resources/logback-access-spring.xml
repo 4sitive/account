@@ -39,7 +39,7 @@
                     <omitEmptyFields>true</omitEmptyFields>
                     <pattern>
                         {
-                        "message":"%h %l %u [%t] \"%r\" %s %b \"%i{Referer}\" \"%i{User-Agent}\"",
+                        "message":"%h %l %u [%t] \"%r\" %s %b \"%i{Referer}\" \"%i{User-Agent}\" \"%reqParameter{q}\"",
                         "type":"access",
                         "pid":"#asLong{${PID}}",
                         "hostname":"${HOSTNAME}",

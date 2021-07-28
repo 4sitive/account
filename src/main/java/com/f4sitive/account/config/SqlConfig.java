@@ -1,7 +1,7 @@
 package com.f4sitive.account.config;
 
-import lombok.Getter;
 import lombok.Setter;
+import net.logstash.logback.argument.StructuredArguments;
 import net.ttddyy.dsproxy.listener.logging.DefaultQueryLogEntryCreator;
 import net.ttddyy.dsproxy.support.ProxyDataSourceBuilder;
 import org.hibernate.engine.jdbc.internal.FormatStyle;
@@ -17,14 +17,18 @@ import org.springframework.jdbc.datasource.LazyConnectionDataSourceProxy;
 
 import javax.sql.DataSource;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @ConfigurationProperties(prefix = "sql")
-public class SqlConfig {
-    private final static Logger log = LoggerFactory.getLogger("SQL");
+class SqlConfig {
+    private final Logger log = LoggerFactory.getLogger("SQL");
     @Setter
     private long threshold;
 
-    String query(String query) {
+    boolean isLogEnabled(long elapsedTime, boolean success, Throwable throwable) {
+        return threshold <= elapsedTime || !success || throwable != null;
+    }
+
+    String format(String query) {
         switch (query.replaceAll("--.*\n", "").replace("\n", "").replaceAll("/\\*.*\\*/", "")
                 .trim().split(" ", 2)[0].toUpperCase()) {
             case "SELECT":
@@ -41,10 +45,6 @@ public class SqlConfig {
         }
     }
 
-    boolean isLogEnabled(long elapsedTime, boolean success, Throwable throwable) {
-        return threshold <= elapsedTime || !success || throwable != null;
-    }
-
     @Bean
     @Order
     public BeanPostProcessor dataSourceBeanPostProcessor() {
@@ -55,7 +55,7 @@ public class SqlConfig {
                     DefaultQueryLogEntryCreator creator = new DefaultQueryLogEntryCreator() {
                         @Override
                         protected String formatQuery(String query) {
-                            return query(query);
+                            return format(query);
                         }
                     };
                     creator.setMultiline(true);
@@ -69,6 +69,7 @@ public class SqlConfig {
                                 Throwable throwable = execInfo.getThrowable();
                                 if (isLogEnabled(elapsedTime, success, throwable)) {
                                     log.info(creator.getLogEntry(execInfo, queryInfoList, false, true),
+                                            StructuredArguments.keyValue("elapsed_time", elapsedTime),
                                             throwable);
                                 }
                             })
