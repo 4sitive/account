@@ -91,6 +91,10 @@ spring:
     init:
       continue-on-error: true
       mode: always
+  data:
+    mongodb:
+      repositories:
+        type: none
 server:
   forward-headers-strategy: framework
 #openssl rsa -in private.pem -pubout -out public.pem

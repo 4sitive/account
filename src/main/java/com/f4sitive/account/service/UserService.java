@@ -2,6 +2,7 @@ package com.f4sitive.account.service;
 
 import com.f4sitive.account.entity.User;
 import com.f4sitive.account.repository.UserRepository;
+import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.AuthorityUtils;
 import org.springframework.security.provisioning.JdbcUserDetailsManager;
@@ -15,9 +16,10 @@ import java.util.UUID;
 @Service
 public class UserService extends JdbcUserDetailsManager {
     private final UserRepository userRepository;
+    private final MongoOperations mongoOperations;
 
     public UserService(DataSource dataSource,
-                       UserRepository userRepository) {
+                       UserRepository userRepository, MongoOperations mongoOperations) {
         super(dataSource);
         this.userRepository = userRepository;
 //        setCreateUserSql(JdbcUserDetailsManager.DEF_CREATE_USER_SQL.replaceAll("users", "user"));
@@ -32,6 +34,7 @@ public class UserService extends JdbcUserDetailsManager {
 //        setDeleteGroupSql(JdbcUserDetailsManager.DEF_DELETE_GROUP_SQL.replaceAll("groups", "group"));
 //        setRenameGroupSql(JdbcUserDetailsManager.DEF_RENAME_GROUP_SQL.replaceAll("groups", "group"));
 //        setGroupAuthoritiesSql(JdbcUserDetailsManager.DEF_GROUP_AUTHORITIES_QUERY_SQL.replaceAll("groups", "group"));
+        this.mongoOperations = mongoOperations;
     }
 
     @Override
@@ -40,12 +43,16 @@ public class UserService extends JdbcUserDetailsManager {
         super.createGroup(groupName, authorities);
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public String findUserIdByUsername(String username) {
         return userRepository.findByUsername(username)
                 .map(User::getId)
                 .orElseGet(() -> {
-                    return userRepository.save(User.of(org.springframework.security.core.userdetails.User.withUsername(username).password(UUID.randomUUID().toString()).authorities(AuthorityUtils.NO_AUTHORITIES).build())).getId();
+                    User user = User.of(org.springframework.security.core.userdetails.User.withUsername(username).password(UUID.randomUUID().toString()).authorities(AuthorityUtils.NO_AUTHORITIES).build());
+//                    Optional.ofNullable(mongoOperations.findOne(Query.query(Criteria.where("username").is(username)), User.class))
+//                            .map(User::getId)
+//                            .ifPresent(user::setId);
+                    return userRepository.save(user).getId();
 //                    createUser(org.springframework.security.core.userdetails.User.withUsername(username).password(UUID.randomUUID().toString()).authorities(AuthorityUtils.NO_AUTHORITIES).build());
 //                    return userRepository.findByUsername(username).map(User::getId).orElseThrow(IllegalStateException::new);
                 });
