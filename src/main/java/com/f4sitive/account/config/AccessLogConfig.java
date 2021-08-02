@@ -156,6 +156,8 @@ public class AccessLogConfig {
         };
     }
 
+    private static final String[] NA_ARRAY = new String[]{AccessEvent.NA};
+
     AccessEvent accessEvent(Request request, Response response, ServerAdapter adapter) {
         return new AccessEvent(request, response, adapter) {
             private String remoteHost;
@@ -202,7 +204,7 @@ public class AccessLogConfig {
             public String getRequestHeader(String key) {
                 buildRequestHeaderMap();
                 return Optional.ofNullable(requestHeaderMap.get(key.toLowerCase()))
-                        .orElse("-");
+                        .orElse(NA);
             }
 
             @Override
@@ -242,7 +244,7 @@ public class AccessLogConfig {
             public String[] getRequestParameter(String key) {
                 buildRequestParameterMap();
                 return Optional.ofNullable(requestParameterMap.get(key))
-                        .orElseGet(() -> new String[]{"-"});
+                        .orElse(NA_ARRAY);
             }
 
             @Override

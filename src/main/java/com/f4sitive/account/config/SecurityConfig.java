@@ -5,6 +5,7 @@ import com.f4sitive.account.service.AuthorizedClientService;
 import com.f4sitive.account.service.UserService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.http.client.HttpClient;
+import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -127,7 +128,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 }
             }
         };
-
+//Endpoint
         http
                 .requestMatcher(AnyRequestMatcher.INSTANCE)
                 .authorizeRequests(requests -> requests.anyRequest().authenticated())
