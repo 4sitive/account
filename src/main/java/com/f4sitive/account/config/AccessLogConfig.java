@@ -34,16 +34,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.security.Principal;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.function.BooleanSupplier;
 
 /**
@@ -156,8 +147,6 @@ public class AccessLogConfig {
         };
     }
 
-    private static final String[] NA_ARRAY = new String[]{AccessEvent.NA};
-
     AccessEvent accessEvent(Request request, Response response, ServerAdapter adapter) {
         return new AccessEvent(request, response, adapter) {
             private String remoteHost;
@@ -204,7 +193,7 @@ public class AccessLogConfig {
             public String getRequestHeader(String key) {
                 buildRequestHeaderMap();
                 return Optional.ofNullable(requestHeaderMap.get(key.toLowerCase()))
-                        .orElse(NA);
+                        .orElse("-");
             }
 
             @Override
@@ -244,7 +233,7 @@ public class AccessLogConfig {
             public String[] getRequestParameter(String key) {
                 buildRequestParameterMap();
                 return Optional.ofNullable(requestParameterMap.get(key))
-                        .orElse(NA_ARRAY);
+                        .orElseGet(() -> new String[]{"-"});
             }
 
             @Override

@@ -5,6 +5,7 @@ import com.f4sitive.account.service.AuthorizedClientService;
 import com.f4sitive.account.service.UserService;
 import com.fasterxml.jackson.databind.JsonNode;
 import org.apache.http.client.HttpClient;
+import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
@@ -51,6 +52,7 @@ import org.springframework.security.web.savedrequest.RequestCache;
 import org.springframework.security.web.savedrequest.SavedRequest;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 import org.springframework.security.web.util.matcher.AnyRequestMatcher;
+import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
 import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
@@ -129,8 +131,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             }
         };
 //Endpoint
+//        new NegatedRequestMatcher(EndpointRequest.toAnyEndpoint())
         http
-                .requestMatcher(AnyRequestMatcher.INSTANCE)
+                .requestMatcher(new NegatedRequestMatcher(EndpointRequest.toAnyEndpoint()))
                 .authorizeRequests(requests -> requests.anyRequest().authenticated())
                 .oauth2Login(customizer -> customizer
                         .successHandler(successHandler)
