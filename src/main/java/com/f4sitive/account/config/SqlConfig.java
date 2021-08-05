@@ -19,7 +19,7 @@ import javax.sql.DataSource;
 
 @Configuration(proxyBeanMethods = false)
 @ConfigurationProperties(prefix = "sql")
-class SqlConfig {
+public class SqlConfig {
     private final Logger log = LoggerFactory.getLogger("SQL");
     @Setter
     private long threshold;

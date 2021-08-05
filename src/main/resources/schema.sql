@@ -181,3 +181,8 @@ create table `group_member`
 ) engine=InnoDB;
 
 
+-- create table "revision_generator" (
+--     "next_val" bigint
+-- );
+-- insert into "revision_generator"
+-- values (100);

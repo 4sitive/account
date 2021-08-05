@@ -15,7 +15,7 @@ import java.util.Optional;
 
 @Profile("localhost")
 @Configuration(proxyBeanMethods = false)
-class TestConfig {
+public class TestConfig {
     @Bean
     @Order
     public BeanPostProcessor dataSourcePropertiesBeanPostProcessor(MySQLContainer<?> mySqlContainer) {

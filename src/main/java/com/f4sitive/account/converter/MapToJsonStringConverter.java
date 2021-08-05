@@ -15,14 +15,13 @@ import java.util.Optional;
 
 @Converter
 public class MapToJsonStringConverter implements AttributeConverter<Map<String, Object>, String> {
-    private final ObjectMapper mapper;
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper().disable(SerializationFeature.INDENT_OUTPUT);
     private final ObjectWriter writer;
     private final ObjectReader reader;
 
-    MapToJsonStringConverter(ObjectMapper objectMapper) {
-        this.mapper = objectMapper.copy().disable(SerializationFeature.INDENT_OUTPUT);
-        this.writer = mapper.writer();
-        this.reader = mapper.readerFor(new TypeReference<Map<String, Object>>() {
+    MapToJsonStringConverter() {
+        this.writer = OBJECT_MAPPER.writer();
+        this.reader = OBJECT_MAPPER.readerFor(new TypeReference<Map<String, Object>>() {
         });
     }
 

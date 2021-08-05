@@ -29,15 +29,18 @@ import java.util.Set;
 public class Revision implements Persistable<Long> {
     private static final long serialVersionUID = 1L;
     @Id
-    @GeneratedValue(generator = "RevisionNumberSequenceGenerator")
+    @GeneratedValue(generator = "RevisionGenerator")
     @GenericGenerator(
-            name = "RevisionNumberSequenceGenerator",
-            strategy = "org.hibernate.envers.enhanced.OrderedSequenceGenerator",
+            name = "RevisionGenerator",
+//            strategy = "org.hibernate.envers.enhanced.OrderedSequenceGenerator",
+            strategy = "org.hibernate.id.enhanced.SequenceStyleGenerator",
             parameters = {
-                    @org.hibernate.annotations.Parameter(name = "table_name", value = "REVISION_GENERATOR"),
-                    @org.hibernate.annotations.Parameter(name = "sequence_name", value = "REVISION_GENERATOR"),
-                    @org.hibernate.annotations.Parameter(name = "initial_value", value = "1"),
-                    @org.hibernate.annotations.Parameter(name = "increment_size", value = "1")
+//                    @org.hibernate.annotations.Parameter(name = "table_name", value = "REVISION_GENERATOR"),
+//                    @org.hibernate.annotations.Parameter(name = "sequence_name", value = "REVISION_GENERATOR"),
+//                    @org.hibernate.annotations.Parameter(name = "initial_value", value = "1"),
+                    @org.hibernate.annotations.Parameter(name = "increment_size", value = "2"),
+                    @org.hibernate.annotations.Parameter(name = "force_table_use", value = "true"),
+                    @org.hibernate.annotations.Parameter(name = "value_column", value = "id")
             }
     )
     @RevisionNumber

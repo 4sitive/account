@@ -8,12 +8,9 @@ import java.util.Set;
 
 @Converter
 public class SetToCommaDelimitedStringConverter implements AttributeConverter<Set<String>, String> {
-    /**
-     * @see StringUtils#collectionToCommaDelimitedString
-     */
     @Override
     public String convertToDatabaseColumn(Set<String> attribute) {
-        return StringUtils.collectionToDelimitedString(attribute, ",");
+        return StringUtils.collectionToCommaDelimitedString(attribute);
     }
 
     @Override

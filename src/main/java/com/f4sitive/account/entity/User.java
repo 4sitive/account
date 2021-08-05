@@ -6,8 +6,14 @@ import lombok.Setter;
 import org.hibernate.HibernateException;
 import org.hibernate.MappingException;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.boot.model.relational.QualifiedName;
+import org.hibernate.engine.jdbc.env.spi.JdbcEnvironment;
 import org.hibernate.engine.spi.SharedSessionContractImplementor;
+import org.hibernate.envers.enhanced.OrderedSequenceGenerator;
+import org.hibernate.envers.enhanced.OrderedSequenceStructure;
 import org.hibernate.id.UUIDGenerator;
+import org.hibernate.id.enhanced.DatabaseStructure;
+import org.hibernate.id.enhanced.SequenceStyleGenerator;
 import org.hibernate.service.ServiceRegistry;
 import org.hibernate.type.Type;
 import org.springframework.data.annotation.CreatedBy;
@@ -132,14 +138,16 @@ public class User implements Auditable<String, String, Instant>, Serializable {
 
     public static class UserIdentifierGenerator extends UUIDGenerator {
         private String entityName;
+
         @Override
         public void configure(Type type, Properties params, ServiceRegistry serviceRegistry) throws MappingException {
-            entityName = params.getProperty( ENTITY_NAME );
-            if ( entityName == null ) {
+            entityName = params.getProperty(ENTITY_NAME);
+            if (entityName == null) {
                 throw new MappingException("no entity name");
             }
             super.configure(type, params, serviceRegistry);
         }
+
         @Override
         public Serializable generate(SharedSessionContractImplementor session, Object object) throws HibernateException {
             Serializable id = session.getEntityPersister(this.entityName, object).getIdentifier(object, session);
@@ -147,31 +155,59 @@ public class User implements Auditable<String, String, Instant>, Serializable {
         }
     }
 
-    public static class UserEntityListener {
-        private final MongoOperations mongoOperations;
+    public static class Test extends SequenceStyleGenerator {
+        @Override
+        public void configure(Type type, Properties params, ServiceRegistry serviceRegistry) throws MappingException {
+            super.configure(type, params, serviceRegistry);
+        }
+        protected DatabaseStructure buildSequenceStructure(Type type, Properties params, JdbcEnvironment jdbcEnvironment, QualifiedName sequenceName, int initialValue, int incrementSize) {
+//            super.buildSequenceStructure()
+            return new OrderedSequenceStructure(jdbcEnvironment, sequenceName, initialValue, incrementSize, type.getReturnedClass());
+        }
 
-        public UserEntityListener(MongoOperations mongoOperations) {
+        @Override
+        public Serializable generate(SharedSessionContractImplementor session, Object object) throws HibernateException {
+            return super.generate(session, object);
+        }
+    }
+
+    public static class UserEntityListener {
+        private final Optional<MongoOperations> mongoOperations;
+
+        public UserEntityListener(Optional<MongoOperations> mongoOperations) {
             this.mongoOperations = mongoOperations;
         }
 
         @PrePersist
-        public void prePersist(User target){
-            Optional.ofNullable(mongoOperations.findOne(Query.query(Criteria.where("username").is(target.getUsername())), User.class))
+        public void prePersist(User target) {
+//            Query.query(Criteria.where("username").is(target.getUsername())), User.class)
+            mongoOperations.flatMap(m -> Optional.ofNullable(m.findOne(Query.query(Criteria.where("username").is(target.getUsername())), User.class)))
                     .map(User::getId)
                     .ifPresent(target::setId);
+//            Optional.ofNullable(mongoOperations.findOne(Query.query(Criteria.where("username").is(target.getUsername())), User.class))
+//                    .map(User::getId)
+//                    .ifPresent(target::setId);
         }
 
         @PostPersist
         public void postPersist(User target) {
             Assert.notNull(target, "Entity must not be null!");
+            mongoOperations.ifPresent(m -> {
+                m.findAndModify(
+                        Query.query(Criteria.where("_id").is(target.getId())),
+                        Update.update("username", target.getUsername()),
+                        FindAndModifyOptions.options().upsert(true),
+                        User.class
+                );
+            });
 //            ,
 //            FindAndModifyOptions.options().upsert(true),
-            mongoOperations.findAndModify(
-                    Query.query(Criteria.where("_id").is(target.getId())),
-                    Update.update("username", target.getUsername()),
-                    FindAndModifyOptions.options().upsert(true),
-                    User.class
-            );
+//            mongoOperations.findAndModify(
+//                    Query.query(Criteria.where("_id").is(target.getId())),
+//                    Update.update("username", target.getUsername()),
+//                    FindAndModifyOptions.options().upsert(true),
+//                    User.class
+//            );
         }
     }
 }
