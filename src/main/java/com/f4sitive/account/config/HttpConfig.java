@@ -56,7 +56,7 @@ import java.util.concurrent.TimeoutException;
 
 @Configuration(proxyBeanMethods = false)
 @ConfigurationProperties("http")
-class HttpConfig {
+public class HttpConfig {
     private final Logger log = LoggerFactory.getLogger("HTTP");
     @Getter
     private final Proxy proxy = new Proxy();

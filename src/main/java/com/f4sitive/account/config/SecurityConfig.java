@@ -132,6 +132,9 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         };
 //Endpoint
 //        new NegatedRequestMatcher(EndpointRequest.toAnyEndpoint())
+//        new AntPathRequestMatcher("/oauth2/authorization/*", null, false),
+//                new AntPathRequestMatcher("/login", null, false),
+//                new AntPathRequestMatcher(OAuth2LoginAuthenticationFilter.DEFAULT_FILTER_PROCESSES_URI + ".code", null, false),
         http
                 .requestMatcher(new NegatedRequestMatcher(EndpointRequest.toAnyEndpoint()))
                 .authorizeRequests(requests -> requests.anyRequest().authenticated())

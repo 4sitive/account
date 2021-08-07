@@ -32,6 +32,8 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationResp
 import org.springframework.security.oauth2.core.http.converter.OAuth2AuthorizationServerMetadataHttpMessageConverter;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.NimbusJwsEncoder;
 import org.springframework.security.oauth2.server.authorization.JwtEncodingContext;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenCustomizer;
 import org.springframework.security.oauth2.server.authorization.config.ProviderSettings;
@@ -56,6 +58,7 @@ import java.lang.reflect.Field;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -105,6 +108,8 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
                     }
                 }));
         OAuth2AuthorizationServerConfigurer<HttpSecurity> authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer<>();
+//        authorizationServerConfigurer.con
+//        authorizationServerConfigurer.authorizationEndpoint(c -> c.)
         authorizationServerConfigurer.addObjectPostProcessor(new ObjectPostProcessor<Object>() {
             @Override
             public Object postProcess(Object object) {
@@ -220,7 +225,15 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
     }
 
     @Bean
+    public JwtEncoder jwtEncoder(JWKSource<SecurityContext> jwkSource) {
+        return new NimbusJwsEncoder(jwkSource);
+    }
+
+    @Bean
     public OAuth2TokenCustomizer<JwtEncodingContext> jwtCustomizer() {
-        return context -> context.getHeaders().jwsAlgorithm(MacAlgorithm.HS256);
+        return context -> {
+            context.getHeaders().jwsAlgorithm(MacAlgorithm.HS256);
+            context.getClaims().claim("ext", Collections.singletonMap("usr",UUID.randomUUID().toString()));
+        };
     }
 }

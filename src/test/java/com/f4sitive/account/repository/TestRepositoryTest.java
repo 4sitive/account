@@ -16,7 +16,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@Import({SqlConfig.class})//, TestConfig.class
+//@Import({SqlConfig.class})//, TestConfig.class
 //@JsonTest
 //@ActiveProfiles("localhost")
 
@@ -30,9 +30,9 @@ class TestRepositoryTest {
     void test(){
         ThreadUtils.get(() -> {
             com.f4sitive.account.entity.Test test = new com.f4sitive.account.entity.Test();
-            test.setId(UUID.randomUUID().toString());
+//            test.setId(UUID.randomUUID().toString());
             return testRepository.save(test);
-        }, 1);
+        }, 1000);
     }
 
 }
