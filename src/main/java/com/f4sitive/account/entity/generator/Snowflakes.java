@@ -89,9 +89,13 @@ public class Snowflakes {
     }
 
     public static UUID uuid(long id) {
-        long timestamp = (timestamp(id) - GREGORIAN_EPOCH) * 10000L;
+        return uuid(timestamp(id), instance(id), sequence(id));
+    }
+
+    public static UUID uuid(long timestamp, long instance, long sequence) {
+        timestamp = (timestamp - GREGORIAN_EPOCH) * 10000L;
         long msb = 0x0000000000001000L | (0x00000000ffffffffL & timestamp) << 32 | (0x0000ffff00000000L & timestamp) >>> 16 | (0xffff000000000000L & timestamp) >>> 48;
-        long lsb = 0x8000000000000000L | (sequence(id) & 0x0000000000003FFFL) << 48 | instance(id);
+        long lsb = 0x8000000000000000L | (sequence & 0x0000000000003FFFL) << 48 | instance;
         return new UUID(msb, lsb);
     }
 
