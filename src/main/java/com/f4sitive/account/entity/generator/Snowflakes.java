@@ -1,13 +1,9 @@
 package com.f4sitive.account.entity.generator;
 
-import org.hibernate.HibernateException;
-import org.hibernate.engine.spi.SharedSessionContractImplementor;
-import org.hibernate.id.IdentifierGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
-import java.io.Serializable;
 import java.math.BigInteger;
 import java.net.NetworkInterface;
 import java.net.SocketException;
@@ -18,8 +14,8 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-public class SnowballGenerator implements IdentifierGenerator {
-    private final static Logger log = LoggerFactory.getLogger(SnowballGenerator.class);
+public class Snowflakes {
+    private final Logger log = LoggerFactory.getLogger(Snowflakes.class);
     private static final long GREGORIAN_EPOCH = -12219292800000L;
     private static final long TW_EPOCH = 1288834974657L;
 
@@ -28,24 +24,19 @@ public class SnowballGenerator implements IdentifierGenerator {
     private static final int INSTANCE_BITS = 10;
     private static final int SEQUENCE_BITS = 12;
 
-    private static final long maxTimestamp = (1L << TIMESTAMP_BITS) - 1;
-    private static final long maxInstance = (1L << INSTANCE_BITS) - 1;
-    private static final long maxSequence = (1L << SEQUENCE_BITS) - 1;// -1L ^ (-1L << SEQUENCE_BITS);
-
-
     private final long instance;
 
     private volatile long lastTimestamp = -1L;
     private volatile long sequence = 0L;
 
-    public SnowballGenerator() {
+    public static final Snowflakes INSTANCE = new Snowflakes();
+
+    private Snowflakes() {
         String mac = mac();
-        this.instance = (StringUtils.hasText(mac) ? mac.hashCode() : new SecureRandom().nextLong()) & ((1L << INSTANCE_BITS) - 1);
+        this.instance = (StringUtils.hasText(mac) ? mac.hashCode() : new SecureRandom().nextLong()) & (-1L ^ (-1L << INSTANCE_BITS));
         log.info("MAC: {}", mac);
         log.info("TW_EPOCH: {}", Instant.ofEpochMilli(TW_EPOCH));
         log.info("GREGORIAN_EPOCH: {}", Instant.ofEpochMilli(GREGORIAN_EPOCH));
-        log.info("instance: {}, {}, {}, {}", instance, Long.toBinaryString(instance), Long.toBinaryString(instance | 0x0000010000000000L), instance | 0x0000010000000000L);
-
     }
 
     String mac() {
@@ -77,32 +68,31 @@ public class SnowballGenerator implements IdentifierGenerator {
         }
     }
 
-    @Override
-    public Serializable generate(SharedSessionContractImplementor session, Object o) throws HibernateException {
-        return Long.toString(generateId(), 36);
+    public long getInstance() {
+        return instance;
     }
 
     public static long timestamp(UUID uuid) {
         return (uuid.timestamp() / 10000) + GREGORIAN_EPOCH;
     }
 
+    public static long timestamp(long id) {
+        return (id >> (INSTANCE_BITS + SEQUENCE_BITS)) + TW_EPOCH;
+    }
+
+    public static long instance(long id) {
+        return (id & (((1L << INSTANCE_BITS) - 1) << SEQUENCE_BITS)) >> SEQUENCE_BITS;
+    }
+
+    public static long sequence(long id) {
+        return id & ((1L << SEQUENCE_BITS) - 1);
+    }
+
     public static UUID uuid(long id) {
-        long timestamp = (id >> (INSTANCE_BITS + SEQUENCE_BITS)) + TW_EPOCH;
-        long instance = (id & (((1L << INSTANCE_BITS) - 1) << SEQUENCE_BITS)) >> SEQUENCE_BITS;
-        long sequence = id & ((1L << SEQUENCE_BITS) - 1);
-        long msb = 0L;
-        msb |= (0x00000000ffffffffL & ((timestamp - GREGORIAN_EPOCH) * 10000L)) << 32;
-        msb |= (0x0000ffff00000000L & ((timestamp - GREGORIAN_EPOCH) * 10000L)) >>> 16;
-        msb |= (0xffff000000000000L & ((timestamp - GREGORIAN_EPOCH) * 10000L)) >>> 48;
-        msb |= 0x0000000000001000L;
-        long lsb = 0L;
-        lsb |= 0x8000000000000000L;
-        lsb |= (sequence & 0x0000000000003FFFL) << 48;
-        lsb |= instance;
-        UUID uuid = new UUID(msb, lsb);
-        log.info("id: {}, timestamp: {}, instance: {}, sequence: {}\n", id, timestamp, instance, sequence);
-        log.info("id: {}, timestamp: {}, instance: {}, sequence: {}", id, timestamp(uuid), instance, sequence);
-        return uuid;
+        long timestamp = (timestamp(id) - GREGORIAN_EPOCH) * 10000L;
+        long msb = 0x0000000000001000L | (0x00000000ffffffffL & timestamp) << 32 | (0x0000ffff00000000L & timestamp) >>> 16 | (0xffff000000000000L & timestamp) >>> 48;
+        long lsb = 0x8000000000000000L | (sequence(id) & 0x0000000000003FFFL) << 48 | instance(id);
+        return new UUID(msb, lsb);
     }
 
     public synchronized long generateId() {
