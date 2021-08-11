@@ -12,11 +12,11 @@ import org.apache.catalina.Globals;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
 import org.apache.catalina.valves.AccessLogValve;
-import org.springframework.boot.actuate.autoconfigure.web.ManagementContextConfiguration;
 import org.springframework.boot.web.embedded.tomcat.ConfigurableTomcatWebServerFactory;
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
 import org.springframework.lang.NonNull;
 import org.springframework.util.ResourceUtils;
@@ -37,12 +37,7 @@ import java.security.Principal;
 import java.util.*;
 import java.util.function.BooleanSupplier;
 
-/**
- * src/main/resources/META-INF/spring.factories
- * <p>
- * org.springframework.boot.actuate.autoconfigure.web.ManagementContextConfiguration=AccessLogConfig
- */
-@ManagementContextConfiguration(proxyBeanMethods = false)
+@Configuration(proxyBeanMethods = false)
 public class AccessLogConfig {
     @Bean
     FilterRegistrationBean<Filter> contentFilter() {

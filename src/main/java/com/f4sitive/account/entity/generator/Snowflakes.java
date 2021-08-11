@@ -8,7 +8,6 @@ import java.math.BigInteger;
 import java.net.NetworkInterface;
 import java.net.SocketException;
 import java.security.SecureRandom;
-import java.time.Instant;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.UUID;
@@ -29,17 +28,14 @@ public class Snowflakes {
     private volatile long lastTimestamp = -1L;
     private volatile long sequence = 0L;
 
-    public static final Snowflakes INSTANCE = new Snowflakes();
+    public static final Snowflakes INSTANCE = new Snowflakes(mac());
 
-    private Snowflakes() {
-        String mac = mac();
-        this.instance = (StringUtils.hasText(mac) ? mac.hashCode() : new SecureRandom().nextLong()) & (-1L ^ (-1L << INSTANCE_BITS));
-        log.info("MAC: {}", mac);
-        log.info("TW_EPOCH: {}", Instant.ofEpochMilli(TW_EPOCH));
-        log.info("GREGORIAN_EPOCH: {}", Instant.ofEpochMilli(GREGORIAN_EPOCH));
+    public Snowflakes(String id) {
+        log.info(id);
+        this.instance = (StringUtils.hasText(id) ? id.hashCode() : new SecureRandom().nextLong()) & (-1L ^ (-1L << INSTANCE_BITS));
     }
 
-    String mac() {
+    static String mac() {
         try {
             return Collections.list(NetworkInterface.getNetworkInterfaces())
                     .stream()
