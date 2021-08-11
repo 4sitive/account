@@ -1,6 +1,8 @@
 package com.f4sitive.account.config;
 
+import com.f4sitive.account.util.Snowflakes;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.autoconfigure.mongo.MongoClientSettingsBuilderCustomizer;
 import org.springframework.context.annotation.Bean;
@@ -14,6 +16,11 @@ import java.util.concurrent.TimeUnit;
 @EnableMongoAuditing
 @Configuration(proxyBeanMethods = false)
 public class DataConfig {
+    @Bean
+    Snowflakes snowflakes(@Value("${spring.application.index:${spring.cloud.client.ip-address:${random.long[1,1023]}}}") String id) {
+        return new Snowflakes(Long.parseLong(id.chars().filter(Character::isDigit).collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append).toString()));
+    }
+
     @Bean
     MongoClientSettingsBuilderCustomizer mongoClientSettingsBuilderCustomizer() {
         return clientSettingsBuilder -> clientSettingsBuilder
