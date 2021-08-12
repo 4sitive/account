@@ -8,7 +8,6 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
@@ -18,33 +17,35 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 class SnowflakesTest {
-
     @Test
-    void test() {
-        System.out.println("someString".chars().filter(Character::isDigit).collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append));
-        System.out.println("10.10.10.10".chars().filter(Character::isDigit).collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append));
-        System.out.println("1022-31.2030d12n3j5".chars().filter(Character::isDigit).collect(StringBuilder::new, StringBuilder::appendCodePoint, StringBuilder::append));
-        long max = Snowflakes.max();
-        Assertions.assertEquals(Long.MAX_VALUE, max);
-        Assertions.assertEquals(Long.toString(Long.MAX_VALUE, Character.MAX_RADIX), "1y2p0ij32e8e7");
+    void max() {
+        long max = Long.MAX_VALUE;
+        Assertions.assertEquals(Long.toString(max, Character.MAX_RADIX), "1y2p0ij32e8e7");
         Instant instant = Instant.from(ZonedDateTime.of(2080, 07, 10, 17, 30, 30, 208 * 1000_000, ZoneOffset.UTC));
         Assertions.assertEquals(Instant.ofEpochMilli(Snowflakes.timestamp(max)), instant);
         Assertions.assertTrue(Duration.between(Instant.ofEpochMilli(Snowflakes.timestamp(max)), instant).isZero());
-        Assertions.assertEquals(Snowflakes.node(max), 1023L);
+        Assertions.assertEquals(Snowflakes.instance(max), 1023L);
         Assertions.assertEquals(Snowflakes.sequence(max), 4095L);
-        Assertions.assertEquals(new Snowflakes(1024L).getNode(), 0L);
-        Assertions.assertEquals(new Snowflakes(2047L).getNode(), 1023L);
-        System.out.println(UUID.randomUUID().toString().replace("-", ""));
+    }
+
+    @Test
+    void min() {
+        long min = 0L;
+        Assertions.assertEquals(Long.toString(min, Character.MAX_RADIX), "0");
+        Instant instant = Instant.from(ZonedDateTime.of(2010, 11, 04, 01, 42, 54, 657 * 1000_000, ZoneOffset.UTC));
+        Assertions.assertEquals(Instant.ofEpochMilli(Snowflakes.timestamp(min)), instant);
+        Assertions.assertTrue(Duration.between(Instant.ofEpochMilli(Snowflakes.timestamp(min)), instant).isZero());
+        Assertions.assertEquals(Snowflakes.instance(min), 0L);
+        Assertions.assertEquals(Snowflakes.sequence(min), 0L);
     }
 
     @Test
     void generate() throws InterruptedException {
-        Assertions.assertEquals(Long.toBinaryString(Snowflakes.max()).length(), 63);
         long currentTimeMillis = System.currentTimeMillis();
         Snowflakes snowflakes = new Snowflakes(0L);
         Map<Long, Integer> ids = new ConcurrentHashMap<>();
-        int numberOfThreads = 100000;
-        ExecutorService service = Executors.newFixedThreadPool(10);
+        int numberOfThreads = 1000000;
+        ExecutorService service = Executors.newFixedThreadPool(100);
         CountDownLatch latch = new CountDownLatch(numberOfThreads);
         for (int i = 0; i < numberOfThreads; i++) {
             service.submit(() -> {
@@ -59,31 +60,31 @@ class SnowflakesTest {
                 .stream()
                 .forEach(id -> {
                     long timestamp = Snowflakes.timestamp(id);
-                    long node = Snowflakes.node(id);
+                    long instance = Snowflakes.instance(id);
                     long sequence = Snowflakes.sequence(id);
 
-                    UUID uuid = Snowflakes.uuid(timestamp, node, sequence);
+                    UUID uuid = Snowflakes.uuid(timestamp, instance, sequence);
                     Assertions.assertEquals(uuid.version(), 1);
                     Assertions.assertEquals(uuid.variant(), 2);
 
                     Assertions.assertTrue(currentTimeMillis <= Snowflakes.timestamp(uuid));
                     Assertions.assertEquals(timestamp, Snowflakes.timestamp(uuid));
-                    Assertions.assertEquals(node, uuid.node());
+                    Assertions.assertEquals(instance, Snowflakes.instance(uuid));
                     Assertions.assertEquals(sequence, uuid.clockSequence());
 
-                    id = Snowflakes.id(timestamp, node, sequence);
+                    id = Snowflakes.id(timestamp, instance, sequence);
                     Assertions.assertEquals(timestamp, Snowflakes.timestamp(id));
-                    Assertions.assertEquals(node, Snowflakes.node(id));
+                    Assertions.assertEquals(instance, Snowflakes.instance(id));
                     Assertions.assertEquals(sequence, Snowflakes.sequence(id));
                 });
         Assertions.assertTrue(ids.keySet()
                 .stream()
-                .map(id -> Long.toString(id, Character.MAX_RADIX).toUpperCase())
+                .map(id -> Long.toString(id, Character.MAX_RADIX))
                 .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()))
                 .values().stream().allMatch(count -> count == 1));
         Assertions.assertTrue(ids.keySet()
                 .stream()
-                .map(id -> Snowflakes.uuid(Snowflakes.timestamp(id), Snowflakes.node(id), Snowflakes.sequence(id)).toString())
+                .map(id -> Snowflakes.uuid(Snowflakes.timestamp(id), Snowflakes.instance(id), Snowflakes.sequence(id)).toString())
                 .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()))
                 .values().stream().allMatch(count -> count == 1));
     }
