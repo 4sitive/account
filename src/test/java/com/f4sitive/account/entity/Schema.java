@@ -1,17 +1,19 @@
 package com.f4sitive.account.entity;
 
-import com.f4sitive.account.Application;
 import org.hibernate.boot.MetadataSources;
 import org.hibernate.boot.registry.BootstrapServiceRegistry;
 import org.hibernate.boot.registry.BootstrapServiceRegistryBuilder;
 import org.hibernate.boot.registry.StandardServiceRegistry;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import org.hibernate.cfg.AvailableSettings;
+import org.hibernate.dialect.Dialect;
 import org.hibernate.dialect.H2Dialect;
+import org.hibernate.dialect.MySQL57Dialect;
 import org.hibernate.tool.hbm2ddl.SchemaExport;
 import org.hibernate.tool.schema.TargetType;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.config.BeanDefinition;
+import org.springframework.boot.orm.jpa.hibernate.SpringImplicitNamingStrategy;
 import org.springframework.boot.orm.jpa.hibernate.SpringPhysicalNamingStrategy;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
@@ -21,27 +23,21 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class EntityTest {
-    //    spring.jpa.properties.javax.persistence.schema-generation.scripts.action=create
-//    spring.jpa.properties.javax.persistence.schema-generation.scripts.create-target=create.sql
-//    spring.jpa.properties.javax.persistence.schema-generation.scripts.create-source=metadata
-    private List<String> sss(String basePackage) {
-        ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
-        scanner.addIncludeFilter(new AnnotationTypeFilter(Entity.class));
-        return scanner.findCandidateComponents(basePackage)
-                .stream()
-                .map(BeanDefinition::getBeanClassName)
-                .collect(Collectors.toList());
+public class Schema {
+    @Test
+    void test() {
+        create(H2Dialect.class);
+        create(MySQL57Dialect.class);
     }
 
-    @Test
-    public void test() {
+    private void create(Class<? extends Dialect> dialect) {
         BootstrapServiceRegistry bootstrapServiceRegistry = new BootstrapServiceRegistryBuilder()
                 .disableAutoClose()
                 .build();
 
         StandardServiceRegistry standardServiceRegistry = new StandardServiceRegistryBuilder(bootstrapServiceRegistry)
-                .applySetting(AvailableSettings.DIALECT, H2Dialect.class)
+                .applySetting(AvailableSettings.DIALECT, dialect)
+                .applySetting(AvailableSettings.IMPLICIT_NAMING_STRATEGY, SpringImplicitNamingStrategy.class.getName())
                 .applySetting(AvailableSettings.PHYSICAL_NAMING_STRATEGY, SpringPhysicalNamingStrategy.class.getName())
                 .applySetting(AvailableSettings.USE_NEW_ID_GENERATOR_MAPPINGS, false)
                 .applySetting(AvailableSettings.GLOBALLY_QUOTED_IDENTIFIERS, true)
@@ -50,7 +46,7 @@ public class EntityTest {
 
         ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false);
         scanner.addIncludeFilter(new AnnotationTypeFilter(Entity.class));
-        List<String> annotatedClassNames = scanner.findCandidateComponents(Application.class.getPackage().getName())
+        List<String> annotatedClassNames = scanner.findCandidateComponents(getClass().getPackage().getName())
                 .stream()
                 .map(BeanDefinition::getBeanClassName)
                 .collect(Collectors.toList());
@@ -61,8 +57,6 @@ public class EntityTest {
         SchemaExport schemaExport = new SchemaExport();
         schemaExport.setDelimiter(";");
         schemaExport.setFormat(true);
-        schemaExport.setOutputFile("create.sql");
-        schemaExport.createOnly(EnumSet.of(TargetType.STDOUT, TargetType.SCRIPT), metadataSources.buildMetadata());
-//        schemaExport.createOnly(EnumSet.of(TargetType.SCRIPT), metadata);
+        schemaExport.createOnly(EnumSet.of(TargetType.STDOUT), metadataSources.buildMetadata());
     }
 }
