@@ -1,46 +1,45 @@
 package com.f4sitive.account.entity;
 
+import com.f4sitive.account.entity.listener.UserEntityListener;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.hibernate.HibernateException;
-import org.hibernate.MappingException;
 import org.hibernate.annotations.GenericGenerator;
-import org.hibernate.boot.model.relational.QualifiedName;
-import org.hibernate.engine.jdbc.env.spi.JdbcEnvironment;
-import org.hibernate.engine.spi.SharedSessionContractImplementor;
-import org.hibernate.envers.enhanced.OrderedSequenceGenerator;
-import org.hibernate.envers.enhanced.OrderedSequenceStructure;
-import org.hibernate.id.UUIDGenerator;
-import org.hibernate.id.enhanced.DatabaseStructure;
-import org.hibernate.id.enhanced.SequenceStyleGenerator;
-import org.hibernate.service.ServiceRegistry;
-import org.hibernate.type.Type;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.domain.Auditable;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-import org.springframework.data.mongodb.core.FindAndModifyOptions;
-import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.util.Assert;
 
-import javax.persistence.*;
+import javax.persistence.Basic;
+import javax.persistence.CascadeType;
+import javax.persistence.Column;
+import javax.persistence.ConstraintMode;
+import javax.persistence.ElementCollection;
+import javax.persistence.Entity;
+import javax.persistence.EntityListeners;
+import javax.persistence.FetchType;
+import javax.persistence.ForeignKey;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.JoinColumn;
+import javax.persistence.JoinTable;
+import javax.persistence.Lob;
+import javax.persistence.ManyToMany;
+import javax.persistence.Table;
+import javax.persistence.UniqueConstraint;
+import javax.persistence.Version;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.Set;
 
-@EntityListeners(value = {AuditingEntityListener.class, User.UserEntityListener.class})
+@EntityListeners(value = {AuditingEntityListener.class, UserEntityListener.class})
 @Getter
 @Setter
 @Entity
@@ -52,8 +51,8 @@ public class User implements Auditable<String, String, Instant>, Serializable {
     public static final int ID_LENGTH = 36;
     @Id
     @org.springframework.data.annotation.Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY, generator = "generator")
-    @GenericGenerator(name = "generator", strategy = "com.f4sitive.account.entity.User$UserIdentifierGenerator")
+    @GeneratedValue(generator = "user_identifier_generator")
+    @GenericGenerator(name = "user_identifier_generator", strategy = "com.f4sitive.account.entity.generator.UserIdentifierGenerator")
     @Column(length = User.ID_LENGTH)
     private String id;
 
@@ -134,80 +133,5 @@ public class User implements Auditable<String, String, Instant>, Serializable {
     @Override
     public boolean isNew() {
         return getId() == null;
-    }
-
-    public static class UserIdentifierGenerator extends UUIDGenerator {
-        private String entityName;
-
-        @Override
-        public void configure(Type type, Properties params, ServiceRegistry serviceRegistry) throws MappingException {
-            entityName = params.getProperty(ENTITY_NAME);
-            if (entityName == null) {
-                throw new MappingException("no entity name");
-            }
-            super.configure(type, params, serviceRegistry);
-        }
-
-        @Override
-        public Serializable generate(SharedSessionContractImplementor session, Object object) throws HibernateException {
-            Serializable id = session.getEntityPersister(this.entityName, object).getIdentifier(object, session);
-            return id == null ? super.generate(session, object) : id;
-        }
-    }
-
-    public static class Test extends SequenceStyleGenerator {
-        @Override
-        public void configure(Type type, Properties params, ServiceRegistry serviceRegistry) throws MappingException {
-            super.configure(type, params, serviceRegistry);
-        }
-        protected DatabaseStructure buildSequenceStructure(Type type, Properties params, JdbcEnvironment jdbcEnvironment, QualifiedName sequenceName, int initialValue, int incrementSize) {
-//            super.buildSequenceStructure()
-            return new OrderedSequenceStructure(jdbcEnvironment, sequenceName, initialValue, incrementSize, type.getReturnedClass());
-        }
-
-        @Override
-        public Serializable generate(SharedSessionContractImplementor session, Object object) throws HibernateException {
-            return super.generate(session, object);
-        }
-    }
-
-    public static class UserEntityListener {
-        private final Optional<MongoOperations> mongoOperations;
-
-        public UserEntityListener(Optional<MongoOperations> mongoOperations) {
-            this.mongoOperations = mongoOperations;
-        }
-
-        @PrePersist
-        public void prePersist(User target) {
-//            Query.query(Criteria.where("username").is(target.getUsername())), User.class)
-            mongoOperations.flatMap(m -> Optional.ofNullable(m.findOne(Query.query(Criteria.where("username").is(target.getUsername())), User.class)))
-                    .map(User::getId)
-                    .ifPresent(target::setId);
-//            Optional.ofNullable(mongoOperations.findOne(Query.query(Criteria.where("username").is(target.getUsername())), User.class))
-//                    .map(User::getId)
-//                    .ifPresent(target::setId);
-        }
-
-        @PostPersist
-        public void postPersist(User target) {
-            Assert.notNull(target, "Entity must not be null!");
-            mongoOperations.ifPresent(m -> {
-                m.findAndModify(
-                        Query.query(Criteria.where("_id").is(target.getId())),
-                        Update.update("username", target.getUsername()),
-                        FindAndModifyOptions.options().upsert(true),
-                        User.class
-                );
-            });
-//            ,
-//            FindAndModifyOptions.options().upsert(true),
-//            mongoOperations.findAndModify(
-//                    Query.query(Criteria.where("_id").is(target.getId())),
-//                    Update.update("username", target.getUsername()),
-//                    FindAndModifyOptions.options().upsert(true),
-//                    User.class
-//            );
-        }
     }
 }

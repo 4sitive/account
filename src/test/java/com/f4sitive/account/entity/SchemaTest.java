@@ -23,7 +23,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.stream.Collectors;
 
-public class Schema {
+class SchemaTest {
     @Test
     void test() {
         create(H2Dialect.class);

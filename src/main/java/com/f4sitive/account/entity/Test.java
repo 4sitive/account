@@ -22,8 +22,9 @@ public class Test {
     @GenericGenerator(
             name = "Generator",
 //            strategy = "org.hibernate.envers.enhanced.OrderedSequenceGenerator",
+            strategy = "org.hibernate.id.enhanced.SequenceStyleGenerator",
 //            strategy = "com.f4sitive.account.entity.generator.IdGenerator",
-            strategy = "com.f4sitive.account.entity.generator.SnowballGenerator",
+//            strategy = "com.f4sitive.account.entity.generator.UserSnowballGenerator",
             parameters = {
 //                    @org.hibernate.annotations.Parameter(name = "table_name", value = "REVISION_GENERATOR"),
 //                    @org.hibernate.annotations.Parameter(name = "sequence_name", value = "REVISION_GENERATOR"),

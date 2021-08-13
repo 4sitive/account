@@ -42,9 +42,9 @@ class SnowflakesTest {
     @Test
     void generate() throws InterruptedException {
         long currentTimeMillis = System.currentTimeMillis();
-        Snowflakes snowflakes = new Snowflakes(0L);
+        Snowflakes snowflakes = new Snowflakes(1024L);
         Map<Long, Integer> ids = new ConcurrentHashMap<>();
-        int numberOfThreads = 1000000;
+        int numberOfThreads = 100000;
         ExecutorService service = Executors.newFixedThreadPool(100);
         CountDownLatch latch = new CountDownLatch(numberOfThreads);
         for (int i = 0; i < numberOfThreads; i++) {

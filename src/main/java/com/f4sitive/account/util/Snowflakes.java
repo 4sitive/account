@@ -2,6 +2,7 @@ package com.f4sitive.account.util;
 
 import lombok.Getter;
 
+import java.security.SecureRandom;
 import java.util.UUID;
 
 public class Snowflakes {
@@ -45,7 +46,7 @@ public class Snowflakes {
     public static UUID uuid(long timestamp, long instance, long sequence) {
         long time = (timestamp - GREGORIAN_EPOCH) * 10000L;
         long msb = (0x00000000ffffffffL & time) << 32 | (0x0000ffff00000000L & time) >>> 16 | (0xffff000000000000L & time) >>> 48 | 0x0000000000001000L;
-        long lsb = 0x8000010000000000L | (sequence & 0x0000000000003FFFL) << 48 | instance;
+        long lsb = 0x8000000000000000L | (sequence & 0x0000000000003fffL) << 48 | (instance | 0x0000010000000000L) | (new SecureRandom().nextLong() & 0x000000fffffffc00L);
         return new UUID(msb, lsb);
     }
 

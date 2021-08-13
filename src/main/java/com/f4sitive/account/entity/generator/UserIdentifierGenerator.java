@@ -32,10 +32,8 @@ public class UserIdentifierGenerator implements IdentifierGenerator, Configurabl
     Serializable generate() {
         return snowflakes
                 .map(Snowflakes::generate)
-                .map(id -> ("APL" + Long.toString(id, Character.MAX_RADIX) + UUID.randomUUID())
-                        .replace("-", "")
-                        .substring(0, 20)
-                        .toUpperCase())
+                .map(generate -> Snowflakes.uuid(Snowflakes.timestamp(generate), Snowflakes.instance(generate), Snowflakes.sequence(generate)))
+                .map(UUID::toString)
                 .orElseThrow(() -> new IdentifierGenerationException("ids for this class must be manually assigned before calling save(): " + entityName));
     }
 
