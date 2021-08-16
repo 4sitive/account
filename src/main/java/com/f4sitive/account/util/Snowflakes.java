@@ -8,6 +8,7 @@ import java.util.UUID;
 public class Snowflakes {
     private static final long GREGORIAN_EPOCH = -12219292800000L;
     private static final long TW_EPOCH = 1288834974657L;
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     private static final int TIMESTAMP_BITS = 41;
     private static final int INSTANCE_BITS = 10;
@@ -16,8 +17,8 @@ public class Snowflakes {
     @Getter
     private final long instance;
 
-    private volatile long lastTimestamp = -1L;
-    private volatile long sequence = 0L;
+    private long lastTimestamp = -1L;
+    private long sequence = 0L;
 
     public Snowflakes(long instance) {
         this.instance = instance & ~(-1L << INSTANCE_BITS);
@@ -44,9 +45,13 @@ public class Snowflakes {
     }
 
     public static UUID uuid(long timestamp, long instance, long sequence) {
+        return uuid(timestamp, instance, sequence, false);
+    }
+
+    public static UUID uuid(long timestamp, long instance, long sequence, boolean random) {
         long time = (timestamp - GREGORIAN_EPOCH) * 10000L;
         long msb = (0x00000000ffffffffL & time) << 32 | (0x0000ffff00000000L & time) >>> 16 | (0xffff000000000000L & time) >>> 48 | 0x0000000000001000L;
-        long lsb = 0x8000000000000000L | (sequence & 0x0000000000003fffL) << 48 | (instance | 0x0000010000000000L) | (new SecureRandom().nextLong() & 0x000000fffffffc00L);
+        long lsb = 0x8000000000000000L | (sequence & 0x0000000000003fffL) << 48 | instance | 0x0000010000000000L | (random ? RANDOM.nextLong() & 0x000000fffffffc00L : 0x0000000000000000L);
         return new UUID(msb, lsb);
     }
 

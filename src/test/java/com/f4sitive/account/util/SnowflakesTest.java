@@ -18,6 +18,18 @@ import java.util.stream.Collectors;
 
 class SnowflakesTest {
     @Test
+    void test() {
+        long timestamp = ZonedDateTime.of(2020, 01, 01, 00, 00, 00, 000 * 1000_000, ZoneOffset.UTC).toInstant().toEpochMilli();
+        long instance = 0L;
+        long sequence = 0L;
+        Assertions.assertEquals(Snowflakes.id(timestamp, instance, sequence), 1212161512043446272L);
+        Assertions.assertEquals(Snowflakes.uuid(timestamp, instance, sequence).timestamp(), UUID.fromString("a747c000-2c29-11ea-8000-010000000000").timestamp());
+        Assertions.assertEquals(Snowflakes.uuid(timestamp, instance, sequence).clockSequence(), UUID.fromString("a747c000-2c29-11ea-8000-010000000000").clockSequence());
+        Assertions.assertEquals(Snowflakes.uuid(timestamp, instance, sequence), UUID.fromString("a747c000-2c29-11ea-8000-010000000000"));
+        Assertions.assertEquals(Snowflakes.instance(Snowflakes.uuid(timestamp, instance, sequence)), Snowflakes.instance(UUID.fromString("a747c000-2c29-11ea-8000-010000000000")));
+    }
+
+    @Test
     void max() {
         long max = Long.MAX_VALUE;
         Assertions.assertEquals(Long.toString(max, Character.MAX_RADIX), "1y2p0ij32e8e7");
