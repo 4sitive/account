@@ -2,13 +2,11 @@ package com.f4sitive.account.util;
 
 import lombok.Getter;
 
-import java.security.SecureRandom;
 import java.util.UUID;
 
 public class Snowflakes {
     private static final long GREGORIAN_EPOCH = -12219292800000L;
     private static final long TW_EPOCH = 1288834974657L;
-    private static final SecureRandom RANDOM = new SecureRandom();
 
     private static final int TIMESTAMP_BITS = 41;
     private static final int INSTANCE_BITS = 10;
@@ -32,26 +30,26 @@ public class Snowflakes {
         return uuid.node() & ~(-1L << INSTANCE_BITS);
     }
 
+    public static long sequence(UUID uuid) {
+        return uuid.clockSequence();
+    }
+
     public static long timestamp(long id) {
-        return ((id >> (INSTANCE_BITS + SEQUENCE_BITS)) & ~(-1L << TIMESTAMP_BITS)) + TW_EPOCH;
+        return ((id >>> (INSTANCE_BITS + SEQUENCE_BITS)) & ~(-1L << TIMESTAMP_BITS)) + TW_EPOCH;
     }
 
     public static long instance(long id) {
-        return (id >> SEQUENCE_BITS) & ~(-1L << INSTANCE_BITS);
+        return (id >>> SEQUENCE_BITS) & ~(-1L << INSTANCE_BITS);
     }
 
     public static long sequence(long id) {
         return id & ~(-1L << SEQUENCE_BITS);
     }
 
-    public static UUID uuid(long timestamp, long instance, long sequence) {
-        return uuid(timestamp, instance, sequence, false);
-    }
-
-    public static UUID uuid(long timestamp, long instance, long sequence, boolean random) {
-        long time = (timestamp - GREGORIAN_EPOCH) * 10000L;
-        long msb = (0x00000000ffffffffL & time) << 32 | (0x0000ffff00000000L & time) >>> 16 | (0xffff000000000000L & time) >>> 48 | 0x0000000000001000L;
-        long lsb = 0x8000000000000000L | (sequence & 0x0000000000003fffL) << 48 | instance | 0x0000010000000000L | (random ? RANDOM.nextLong() & 0x000000fffffffc00L : 0x0000000000000000L);
+    public static UUID uuid(long id) {
+        long timestamp = (timestamp(id) - GREGORIAN_EPOCH) * 10000L;
+        long msb = (0x00000000ffffffffL & timestamp) << 32 | (0x0000ffff00000000L & timestamp) >>> 16 | (0xffff000000000000L & timestamp) >>> 48 | 0x0000000000001000L;
+        long lsb = 0x8000000000000000L | (sequence(id) & 0x0000000000003fffL) << 48 | instance(id) | 0x0000010000000000L | ((Long.toString(id, Character.MAX_RADIX).hashCode() << 10) & 0x0000fefffffffc00L);
         return new UUID(msb, lsb);
     }
 

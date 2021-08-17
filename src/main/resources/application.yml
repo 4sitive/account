@@ -73,6 +73,8 @@ spring:
     import: optional:classpath:security.yml
   jpa:
     properties:
+      instance: ${spring.application.index:${spring.cloud.client.ip-address:${random.long[1,1023]}}}
+      test: '#{snowflakes}'
       hibernate.globally_quoted_identifiers: true
       hibernate.globally_quoted_identifiers_skip_column_definitions: true
     hibernate:

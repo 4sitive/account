@@ -1,0 +1,1 @@
+./mvnw sonar:sonar -Dsonar.host.url=http://10.10.10.10:9000 -Dsonar.login=91afaa0b1382ed2b2760567acf492a03c65ebaac

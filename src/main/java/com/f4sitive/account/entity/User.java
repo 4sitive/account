@@ -15,24 +15,7 @@ import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.security.core.userdetails.UserDetails;
 
-import javax.persistence.Basic;
-import javax.persistence.CascadeType;
-import javax.persistence.Column;
-import javax.persistence.ConstraintMode;
-import javax.persistence.ElementCollection;
-import javax.persistence.Entity;
-import javax.persistence.EntityListeners;
-import javax.persistence.FetchType;
-import javax.persistence.ForeignKey;
-import javax.persistence.GeneratedValue;
-import javax.persistence.Id;
-import javax.persistence.JoinColumn;
-import javax.persistence.JoinTable;
-import javax.persistence.Lob;
-import javax.persistence.ManyToMany;
-import javax.persistence.Table;
-import javax.persistence.UniqueConstraint;
-import javax.persistence.Version;
+import javax.persistence.*;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.LinkedHashSet;
@@ -51,8 +34,8 @@ public class User implements Auditable<String, String, Instant>, Serializable {
     public static final int ID_LENGTH = 36;
     @Id
     @org.springframework.data.annotation.Id
-    @GeneratedValue(generator = "user_identifier_generator")
-    @GenericGenerator(name = "user_identifier_generator", strategy = "com.f4sitive.account.entity.generator.UserIdentifierGenerator")
+    @GeneratedValue(strategy = GenerationType.TABLE, generator = "snowflakes_1")
+    @GenericGenerator(name = "snowflakes_1", strategy = "com.f4sitive.account.entity.generator.UserIdentifierGenerator")
     @Column(length = User.ID_LENGTH)
     private String id;
 

@@ -1,5 +1,7 @@
 package com.f4sitive.account.repository;
 
+import com.f4sitive.account.config.DataConfig;
+import com.f4sitive.account.config.JpaConfig;
 import com.f4sitive.account.config.SqlConfig;
 import com.f4sitive.account.config.TestConfig;
 import com.f4sitive.account.util.ThreadUtils;
@@ -21,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.*;
 //@ActiveProfiles("localhost")
 
 @DataJpaTest
+@Import({DataConfig.class, JpaConfig.class})
 class TestRepositoryTest {
 //    @MockBean
 //    private ObjectMapper objectMapper;
@@ -32,7 +35,7 @@ class TestRepositoryTest {
             com.f4sitive.account.entity.Test test = new com.f4sitive.account.entity.Test();
 //            test.setId(UUID.randomUUID().toString());
             return testRepository.save(test);
-        }, 1000);
+        }, 10);
     }
 
 }
