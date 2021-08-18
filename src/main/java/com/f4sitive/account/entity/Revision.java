@@ -21,29 +21,27 @@ import java.util.Set;
 
 @Getter
 @Setter
-@ToString(callSuper = false, of = {"id"})
-@EqualsAndHashCode(callSuper = false, of = {"id"})
+@ToString(callSuper = false, onlyExplicitlyIncluded = true)
+@EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @RevisionEntity
 @Entity
 @Table
 public class Revision implements Persistable<Long> {
     private static final long serialVersionUID = 1L;
     @Id
-    @GeneratedValue(generator = "RevisionGenerator")
+    @GeneratedValue(generator = "REVISION_GENERATOR")
     @GenericGenerator(
-            name = "RevisionGenerator",
-//            strategy = "org.hibernate.envers.enhanced.OrderedSequenceGenerator",
+            name = "REVISION_GENERATOR",
             strategy = "org.hibernate.id.enhanced.SequenceStyleGenerator",
             parameters = {
-//                    @org.hibernate.annotations.Parameter(name = "table_name", value = "REVISION_GENERATOR"),
-//                    @org.hibernate.annotations.Parameter(name = "sequence_name", value = "REVISION_GENERATOR"),
-//                    @org.hibernate.annotations.Parameter(name = "initial_value", value = "1"),
-                    @org.hibernate.annotations.Parameter(name = "increment_size", value = "2"),
+                    @org.hibernate.annotations.Parameter(name = "increment_size", value = "1"),
                     @org.hibernate.annotations.Parameter(name = "force_table_use", value = "true"),
                     @org.hibernate.annotations.Parameter(name = "value_column", value = "id")
             }
     )
     @RevisionNumber
+    @ToString.Include
+    @EqualsAndHashCode.Include
     private Long id;
 
     @ModifiedEntityNames
@@ -57,11 +55,14 @@ public class Revision implements Persistable<Long> {
     @CreatedDate
     @Access(AccessType.PROPERTY)
     @RevisionTimestamp
+    @ToString.Include
+    @EqualsAndHashCode.Include
     private Date createdDate;
 
     @CreatedBy
     @Access(AccessType.PROPERTY)
     @Column(length = User.ID_LENGTH)
+    @ToString.Include
     private String createdBy;
 
     @Override

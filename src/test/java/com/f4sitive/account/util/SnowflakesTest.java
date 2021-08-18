@@ -1,8 +1,10 @@
 package com.f4sitive.account.util;
 
+import com.f4sitive.account.entity.generator.UserIdentifierGenerator;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.security.SecureRandom;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -24,6 +26,23 @@ class SnowflakesTest {
         long sequence = 127L;
         Assertions.assertEquals(Snowflakes.id(timestamp, instance, sequence), 1212161512043458687L);
         Assertions.assertEquals(Snowflakes.uuid(1212161512043458687L), UUID.fromString("a747c000-2c29-11ea-807f-ffffdb760803"));
+
+        System.out.println(Snowflakes.timestamp(UserIdentifierGenerator.id("CAUKTOOU5SDFK3FDF")));
+        System.out.println(Snowflakes.instance(UserIdentifierGenerator.id("CAUKTOOU5SDFK3FDF")));
+        System.out.println(Snowflakes.sequence(UserIdentifierGenerator.id("CAUKTOOU5SDFK3FDF")));
+        String id = Long.toString(new Snowflakes(1L).generate(), Character.MAX_RADIX);
+        System.out.println(Long.toHexString(Double.doubleToLongBits(Math.random())));
+        System.out.println(Long.toHexString(Double.doubleToLongBits(Math.random())));
+        System.out.println(Integer.toString(id.length(), Character.MAX_RADIX));
+        System.out.println(Long.toString(new SecureRandom().nextLong(), Character.MAX_RADIX));
+        System.out.println(("APL" + Integer.toString(id.length(), Character.MAX_RADIX) + id + Long.toHexString(Double.doubleToLongBits(Math.random()))).substring(0, 20).toUpperCase());
+        int size = Integer.parseInt("APLCAUKSG8YI0NB43FED".substring(3, 4), Character.MAX_RADIX);
+        System.out.println("APLCAUKSG8YI0NB43FED".substring(4, size+4));
+        System.out.println("APLAUKQKEUHR2TC5371C".substring(0, 1));
+        System.out.println(Long.toString(12, Character.MAX_RADIX));
+        System.out.println(Long.toString(13, Character.MAX_RADIX));
+        System.out.println(Long.toString(14, Character.MAX_RADIX));
+        System.out.println(Long.toString(15, Character.MAX_RADIX));
     }
 
     @Test
@@ -56,6 +75,10 @@ class SnowflakesTest {
         Assertions.assertTrue(Duration.between(Instant.ofEpochMilli(timestamp), instant).isZero());
         Assertions.assertEquals(instance, 0L);
         Assertions.assertEquals(sequence, 0L);
+        System.out.println(Long.toString(Snowflakes.id(1288834974658L,instance,sequence), Character.MAX_RADIX));
+        System.out.println(Long.toString(Snowflakes.id(1L,instance,sequence), Character.MAX_RADIX));
+        System.out.println(Long.toString(Snowflakes.id(System.currentTimeMillis(),instance,sequence), Character.MAX_RADIX));
+        System.out.println(Long.toString(Snowflakes.id(Long.MAX_VALUE,instance,sequence), Character.MAX_RADIX));
 
         UUID uuid = Snowflakes.uuid(min);
         Assertions.assertEquals(Snowflakes.timestamp(uuid), timestamp);
@@ -76,6 +99,7 @@ class SnowflakesTest {
             service.submit(() -> {
                 ids.merge(snowflakes.generate(), 1, Integer::sum);
                 latch.countDown();
+                return snowflakes.generate();
             });
         }
         latch.await();

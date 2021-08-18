@@ -46,8 +46,7 @@ public class SqlConfig {
     }
 
     @Bean
-    @Order
-    public BeanPostProcessor dataSourceBeanPostProcessor() {
+    BeanPostProcessor dataSourceBeanPostProcessor() {
         return new BeanPostProcessor() {
             @Override
             public Object postProcessAfterInitialization(Object bean, String beanName) throws BeansException {
@@ -59,7 +58,7 @@ public class SqlConfig {
                         }
                     };
                     creator.setMultiline(true);
-                    return new LazyConnectionDataSourceProxy(ProxyDataSourceBuilder
+                    return ProxyDataSourceBuilder
                             .create((DataSource) bean)
                             .proxyResultSet()
                             .traceMethodsWhen(() -> log.isTraceEnabled(), (message) -> log.trace(message))
@@ -73,7 +72,7 @@ public class SqlConfig {
                                             throwable);
                                 }
                             })
-                            .build());
+                            .build();
                 }
                 return bean;
             }

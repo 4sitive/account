@@ -34,8 +34,8 @@ public class User implements Auditable<String, String, Instant>, Serializable {
     public static final int ID_LENGTH = 36;
     @Id
     @org.springframework.data.annotation.Id
-    @GeneratedValue(strategy = GenerationType.TABLE, generator = "snowflakes_1")
-    @GenericGenerator(name = "snowflakes_1", strategy = "com.f4sitive.account.entity.generator.UserIdentifierGenerator")
+    @GeneratedValue(strategy = GenerationType.TABLE, generator = "user_identifier_generator")
+    @GenericGenerator(name = "user_identifier_generator", strategy = "com.f4sitive.account.entity.generator.UserIdentifierGenerator")
     @Column(length = User.ID_LENGTH)
     private String id;
 

@@ -8,11 +8,6 @@
         </encoder>
     </appender>
 
-<!--    <appender name="ASYNC" class="net.logstash.logback.appender.LoggingEventAsyncDisruptorAppender">-->
-<!--        <includeCallerData>true</includeCallerData>-->
-<!--        <appender-ref ref="CONSOLE"/>-->
-<!--    </appender>-->
-
     <root level="INFO">
         <appender-ref ref="CONSOLE"/>
     </root>

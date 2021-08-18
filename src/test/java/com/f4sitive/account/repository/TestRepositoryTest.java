@@ -30,12 +30,12 @@ class TestRepositoryTest {
     @Autowired
     private TestRepository testRepository;
     @Test
-    void test(){
+    void test() throws InterruptedException {
         ThreadUtils.get(() -> {
             com.f4sitive.account.entity.Test test = new com.f4sitive.account.entity.Test();
 //            test.setId(UUID.randomUUID().toString());
             return testRepository.save(test);
-        }, 10);
+        }, 10, 2);
     }
 
 }

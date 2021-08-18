@@ -18,9 +18,9 @@ import javax.persistence.TableGenerator;
 @Entity
 public class Test {
     @Id
-    @GeneratedValue(generator = "Generator")
+    @GeneratedValue(generator = "generator")
     @GenericGenerator(
-            name = "Generator",
+            name = "generator",
 //            strategy = "org.hibernate.envers.enhanced.OrderedSequenceGenerator",
             strategy = "org.hibernate.id.enhanced.SequenceStyleGenerator",
 //            strategy = "com.f4sitive.account.entity.generator.IdGenerator",
