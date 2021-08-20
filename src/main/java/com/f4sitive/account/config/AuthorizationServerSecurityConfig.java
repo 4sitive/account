@@ -27,6 +27,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
+import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.OAuth2AuthorizationServerMetadata;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationResponseType;
 import org.springframework.security.oauth2.core.http.converter.OAuth2AuthorizationServerMetadataHttpMessageConverter;
@@ -46,6 +47,7 @@ import org.springframework.security.web.util.matcher.RequestMatcher;
 import org.springframework.util.ReflectionUtils;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.ServletRequestUtils;
+import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import javax.servlet.FilterChain;
@@ -131,7 +133,7 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
                 .apply(authorizationServerConfigurer);
     }
 
-    OAuth2AuthorizationEndpointFilter oAuth2AuthorizationEndpointFilter(OAuth2AuthorizationEndpointFilter object){
+    OAuth2AuthorizationEndpointFilter oAuth2AuthorizationEndpointFilter(OAuth2AuthorizationEndpointFilter object) {
         Field field = ReflectionUtils.findField(OAuth2AuthorizationEndpointFilter.class, "redirectStrategy");
         ReflectionUtils.makeAccessible(field);
         ReflectionUtils.setField(field, object, new DefaultRedirectStrategy() {
@@ -146,12 +148,12 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
         return object;
     }
 
-    OAuth2AuthorizationServerMetadataEndpointFilter oAuth2AuthorizationServerMetadataEndpointFilter(OAuth2AuthorizationServerMetadataEndpointFilter object) {
+    OncePerRequestFilter oAuth2AuthorizationServerMetadataEndpointFilter(OAuth2AuthorizationServerMetadataEndpointFilter object) {
         Field field = ReflectionUtils.findField(OAuth2AuthorizationServerMetadataEndpointFilter.class, "providerSettings");
         ReflectionUtils.makeAccessible(field);
         ProviderSettings providerSettings = (ProviderSettings) ReflectionUtils.getField(field, object);
-        return new OAuth2AuthorizationServerMetadataEndpointFilter(providerSettings) {
-            private RequestMatcher requestMatcher = new AntPathRequestMatcher(OAuth2AuthorizationServerMetadataEndpointFilter.DEFAULT_OAUTH2_AUTHORIZATION_SERVER_METADATA_ENDPOINT_URI, HttpMethod.GET.name());
+        return new OncePerRequestFilter() {
+            private RequestMatcher requestMatcher = new AntPathRequestMatcher("/.well-known/oauth-authorization-server", HttpMethod.GET.name());
             private OAuth2AuthorizationServerMetadataHttpMessageConverter authorizationServerMetadataHttpMessageConverter = new OAuth2AuthorizationServerMetadataHttpMessageConverter();
 
             @Override
@@ -161,27 +163,27 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
                     return;
                 }
                 OAuth2AuthorizationServerMetadata authorizationServerMetadata = OAuth2AuthorizationServerMetadata.builder()
-                        .issuer(providerSettings.issuer())
-                        .authorizationEndpoint(UriComponentsBuilder.fromUriString(providerSettings.issuer()).path(providerSettings.authorizationEndpoint()).toUriString())
-                        .tokenEndpoint(UriComponentsBuilder.fromUriString(providerSettings.issuer()).path(providerSettings.tokenEndpoint()).toUriString())
+                        .issuer(providerSettings.getIssuer())
+                        .authorizationEndpoint(UriComponentsBuilder.fromUriString(providerSettings.getIssuer()).path(providerSettings.getAuthorizationEndpoint()).toUriString())
+                        .tokenEndpoint(UriComponentsBuilder.fromUriString(providerSettings.getIssuer()).path(providerSettings.getTokenEndpoint()).toUriString())
                         .tokenEndpointAuthenticationMethods((authenticationMethods) -> {
-                            authenticationMethods.add("client_secret_basic");
-                            authenticationMethods.add("client_secret_post");
+                            authenticationMethods.add(ClientAuthenticationMethod.CLIENT_SECRET_BASIC.getValue());
+                            authenticationMethods.add(ClientAuthenticationMethod.CLIENT_SECRET_POST.getValue());
                         })
-                        .jwkSetUrl(UriComponentsBuilder.fromUriString(providerSettings.issuer()).path(providerSettings.jwkSetEndpoint()).toUriString())
+                        .jwkSetUrl(UriComponentsBuilder.fromUriString(providerSettings.getIssuer()).path(providerSettings.getJwkSetEndpoint()).toUriString())
                         .responseType(OAuth2AuthorizationResponseType.CODE.getValue())
                         .grantType(AuthorizationGrantType.AUTHORIZATION_CODE.getValue())
                         .grantType(AuthorizationGrantType.CLIENT_CREDENTIALS.getValue())
                         .grantType(AuthorizationGrantType.REFRESH_TOKEN.getValue())
-                        .tokenRevocationEndpoint(UriComponentsBuilder.fromUriString(providerSettings.issuer()).path(providerSettings.tokenRevocationEndpoint()).toUriString())
+                        .tokenRevocationEndpoint(UriComponentsBuilder.fromUriString(providerSettings.getIssuer()).path(providerSettings.getTokenRevocationEndpoint()).toUriString())
                         .tokenRevocationEndpointAuthenticationMethods((authenticationMethods) -> {
-                            authenticationMethods.add("client_secret_basic");
-                            authenticationMethods.add("client_secret_post");
+                            authenticationMethods.add(ClientAuthenticationMethod.CLIENT_SECRET_BASIC.getValue());
+                            authenticationMethods.add(ClientAuthenticationMethod.CLIENT_SECRET_POST.getValue());
                         })
-                        .tokenIntrospectionEndpoint(UriComponentsBuilder.fromUriString(providerSettings.issuer()).path(providerSettings.tokenIntrospectionEndpoint()).toUriString())
+                        .tokenIntrospectionEndpoint(UriComponentsBuilder.fromUriString(providerSettings.getIssuer()).path(providerSettings.getTokenIntrospectionEndpoint()).toUriString())
                         .tokenIntrospectionEndpointAuthenticationMethods((authenticationMethods) -> {
-                            authenticationMethods.add("client_secret_basic");
-                            authenticationMethods.add("client_secret_post");
+                            authenticationMethods.add(ClientAuthenticationMethod.CLIENT_SECRET_BASIC.getValue());
+                            authenticationMethods.add(ClientAuthenticationMethod.CLIENT_SECRET_POST.getValue());
                         })
                         .codeChallengeMethod("plain")
                         .codeChallengeMethod("S256")
@@ -210,13 +212,14 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
 
     @Bean
     public ProviderSettings providerSettings() {
-        return new ProviderSettings()
+        return ProviderSettings.builder()
                 .authorizationEndpoint("/oauth/authorize")
                 .tokenEndpoint("/oauth/token")
                 .tokenRevocationEndpoint("/oauth/revoke")
                 .tokenIntrospectionEndpoint("/oauth/introspect")
                 .jwkSetEndpoint("/oauth/jwks")
-                .issuer("https://account.4sitive.com");
+                .issuer("https://account.4sitive.com")
+                .build();
     }
 
     @Bean
@@ -232,8 +235,8 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
     @Bean
     public OAuth2TokenCustomizer<JwtEncodingContext> jwtCustomizer() {
         return context -> {
-            context.getHeaders().jwsAlgorithm(MacAlgorithm.HS256);
-            context.getClaims().claim("ext", Collections.singletonMap("usr",UUID.randomUUID().toString()));
+            context.getHeaders().algorithm(MacAlgorithm.HS256);
+            context.getClaims().claim("ext", Collections.singletonMap("usr", UUID.randomUUID().toString()));
         };
     }
 }

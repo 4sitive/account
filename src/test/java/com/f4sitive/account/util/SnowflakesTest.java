@@ -3,6 +3,7 @@ package com.f4sitive.account.util;
 import com.f4sitive.account.entity.generator.UserIdentifierGenerator;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
+import org.springframework.util.StopWatch;
 
 import java.security.SecureRandom;
 import java.time.Duration;
@@ -25,7 +26,8 @@ class SnowflakesTest {
         long instance = 3L;
         long sequence = 127L;
         Assertions.assertEquals(Snowflakes.id(timestamp, instance, sequence), 1212161512043458687L);
-        Assertions.assertEquals(Snowflakes.uuid(1212161512043458687L), UUID.fromString("a747c000-2c29-11ea-807f-ffffdb760803"));
+//        Assertions.assertEquals(Snowflakes.uuid(1212161512043458687L), UUID.fromString("a747c000-2c29-11ea-807f-ffffdb760803"));
+        Assertions.assertEquals(Snowflakes.uuid(1212161512043458687L), UUID.fromString("a747c000-2c29-11ea-807f-a167020bf803"));
 
         System.out.println(Snowflakes.timestamp(UserIdentifierGenerator.id("CAUKTOOU5SDFK3FDF")));
         System.out.println(Snowflakes.instance(UserIdentifierGenerator.id("CAUKTOOU5SDFK3FDF")));
@@ -61,7 +63,8 @@ class SnowflakesTest {
         Assertions.assertEquals(Snowflakes.timestamp(uuid), timestamp);
         Assertions.assertEquals(Snowflakes.instance(uuid), instance);
         Assertions.assertEquals(Snowflakes.sequence(uuid), sequence);
-        Assertions.assertEquals(uuid, UUID.fromString("d7e3bc00-07b4-122e-8fff-01004c5dbfff"));
+//        Assertions.assertEquals(uuid, UUID.fromString("d7e3bc00-07b4-122e-8fff-01004c5dbfff"));
+        Assertions.assertEquals(uuid, UUID.fromString("d7e3bc00-07b4-122e-8fff-e5b1cb1147ff"));
     }
 
     @Test
@@ -84,7 +87,8 @@ class SnowflakesTest {
         Assertions.assertEquals(Snowflakes.timestamp(uuid), timestamp);
         Assertions.assertEquals(Snowflakes.instance(uuid), instance);
         Assertions.assertEquals(Snowflakes.sequence(uuid), sequence);
-        Assertions.assertEquals(uuid, UUID.fromString("d7e3e310-e7b4-11df-8000-01000000c000"));
+//        Assertions.assertEquals(uuid, UUID.fromString("d7e3e310-e7b4-11df-8000-01000000c000"));
+        Assertions.assertEquals(uuid, UUID.fromString("d7e3e310-e7b4-11df-8000-0100002f4000"));
     }
 
     @Test
@@ -92,14 +96,16 @@ class SnowflakesTest {
         long currentTimeMillis = System.currentTimeMillis();
         Snowflakes snowflakes = new Snowflakes(1024L);
         Map<Long, Integer> ids = new ConcurrentHashMap<>();
-        int numberOfThreads = 1000000;
+        int numberOfThreads = 10000;
         ExecutorService service = Executors.newFixedThreadPool(100);
         CountDownLatch latch = new CountDownLatch(numberOfThreads);
         for (int i = 0; i < numberOfThreads; i++) {
             service.submit(() -> {
-                ids.merge(snowflakes.generate(), 1, Integer::sum);
+                long id = snowflakes.generate();
+                System.out.println(Snowflakes.uuid(id));
+                ids.merge(id, 1, Integer::sum);
                 latch.countDown();
-                return snowflakes.generate();
+                return id;
             });
         }
         latch.await();

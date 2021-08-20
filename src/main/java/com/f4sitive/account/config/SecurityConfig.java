@@ -223,10 +223,10 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         CookieRequestCache requestCache = new CookieRequestCache();
         requestCache.setRequestMatcher(new OrRequestMatcher(
                 new AntPathRequestMatcher(
-                        providerSettings.authorizationEndpoint(),
+                        providerSettings.getAuthorizationEndpoint(),
                         HttpMethod.GET.name()),
                 new AntPathRequestMatcher(
-                        providerSettings.authorizationEndpoint(),
+                        providerSettings.getAuthorizationEndpoint(),
                         HttpMethod.POST.name())));
         return requestCache;
     }
