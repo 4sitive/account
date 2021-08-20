@@ -11,7 +11,7 @@ import org.apache.catalina.AccessLog;
 import org.apache.catalina.Globals;
 import org.apache.catalina.connector.Request;
 import org.apache.catalina.connector.Response;
-import org.apache.catalina.valves.AccessLogValve;
+import org.apache.catalina.valves.AbstractAccessLogValve;
 import org.springframework.boot.web.embedded.tomcat.ConfigurableTomcatWebServerFactory;
 import org.springframework.boot.web.server.WebServerFactoryCustomizer;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -31,6 +31,7 @@ import javax.servlet.Filter;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.CharArrayWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.security.Principal;
@@ -42,16 +43,16 @@ public class AccessLogConfig {
     @Bean
     FilterRegistrationBean<Filter> contentFilter() {
         FilterRegistrationBean<Filter> filterRegistrationBean = new FilterRegistrationBean<>((request, response, chain) -> {
-            HttpServletRequest requestToUse = (HttpServletRequest) request;
-            Optional.ofNullable(requestToUse.getUserPrincipal()).map(Principal::getName).ifPresent(remoteUser -> request.setAttribute("org.apache.catalina.AccessLog.RemoteUser", remoteUser));
             BooleanSupplier contentCaching = () -> request.getAttribute(ShallowEtagHeaderFilter.class.getName() + ".STREAMING") == null;
-            HttpServletResponse responseToUse = (HttpServletResponse) response;
-            if (!DispatcherType.ASYNC.equals(request.getDispatcherType())) {
-                if (!(request instanceof ContentCachingRequestWrapper)) {
-                    requestToUse = new ContentCachingRequestWrapper(requestToUse);
-                }
-                if (!(response instanceof ContentCachingResponseWrapper)) {
-                    responseToUse = new ContentCachingResponseWrapper(responseToUse) {
+            HttpServletRequest requestToUse = Optional.of((HttpServletRequest) request)
+                    .filter(req -> !DispatcherType.ASYNC.equals(request.getDispatcherType()))
+                    .filter(req -> !(req instanceof ContentCachingRequestWrapper))
+                    .<HttpServletRequest>map(ContentCachingRequestWrapper::new)
+                    .orElse((HttpServletRequest) request);
+            HttpServletResponse responseToUse = Optional.of((HttpServletResponse) response)
+                    .filter(res -> !DispatcherType.ASYNC.equals(request.getDispatcherType()))
+                    .filter(res -> !(res instanceof ContentCachingResponseWrapper))
+                    .<HttpServletResponse>map(res -> new ContentCachingResponseWrapper(res) {
                         @Override
                         @NonNull
                         public ServletOutputStream getOutputStream() throws IOException {
@@ -63,27 +64,26 @@ public class AccessLogConfig {
                         public PrintWriter getWriter() throws IOException {
                             return contentCaching.getAsBoolean() ? super.getWriter() : getResponse().getWriter();
                         }
-                    };
-                }
-            }
+                    })
+                    .orElse((HttpServletResponse) response);
+            Optional.ofNullable(requestToUse.getUserPrincipal()).map(Principal::getName).ifPresent(name -> request.setAttribute("org.apache.catalina.AccessLog.RemoteUser", name));
             try {
                 chain.doFilter(requestToUse, responseToUse);
             } finally {
-                if (WebAsyncUtils.getAsyncManager(request).isConcurrentHandlingStarted()) {
-                    byte[] content = request.getAttribute(AccessConstants.LB_INPUT_BUFFER) instanceof byte[] ? (byte[]) requestToUse.getAttribute(AccessConstants.LB_INPUT_BUFFER) : new byte[0];
-                    request.setAttribute(AccessConstants.LB_INPUT_BUFFER, content);
-                } else {
-                    ContentCachingRequestWrapper contentCachingRequest = WebUtils.getNativeRequest(requestToUse, ContentCachingRequestWrapper.class);
-                    if (contentCachingRequest != null) {
-                        byte[] content = request.getAttribute(AccessConstants.LB_INPUT_BUFFER) instanceof byte[] ? (byte[]) request.getAttribute(AccessConstants.LB_INPUT_BUFFER) : contentCachingRequest.getContentAsByteArray();
-                        request.setAttribute(AccessConstants.LB_INPUT_BUFFER, content);
-                    }
-                    ContentCachingResponseWrapper contentCachingResponse = WebUtils.getNativeResponse(responseToUse, ContentCachingResponseWrapper.class);
-                    if (contentCachingResponse != null && contentCaching.getAsBoolean()) {
-                        request.setAttribute(AccessConstants.LB_OUTPUT_BUFFER, contentCachingResponse.getContentAsByteArray());
-                        contentCachingResponse.copyBodyToResponse();
-                    }
-                }
+                Optional.ofNullable(WebUtils.getNativeRequest(requestToUse, ContentCachingRequestWrapper.class))
+                        .filter(req -> !WebAsyncUtils.getAsyncManager(request).isConcurrentHandlingStarted())
+                        .ifPresent(req -> request.setAttribute(AccessConstants.LB_INPUT_BUFFER, Optional.ofNullable(request.getAttribute(AccessConstants.LB_INPUT_BUFFER)).filter(byte[].class::isInstance).map(byte[].class::cast).orElseGet(req::getContentAsByteArray)));
+                Optional.ofNullable(WebUtils.getNativeResponse(responseToUse, ContentCachingResponseWrapper.class))
+                        .filter(res -> !WebAsyncUtils.getAsyncManager(request).isConcurrentHandlingStarted())
+                        .filter(res -> contentCaching.getAsBoolean())
+                        .ifPresent(res -> {
+                            request.setAttribute(AccessConstants.LB_OUTPUT_BUFFER, res.getContentAsByteArray());
+                            try {
+                                res.copyBodyToResponse();
+                            } catch (IOException e) {
+                                //ignore
+                            }
+                        });
             }
         });
         filterRegistrationBean.setDispatcherTypes(DispatcherType.ASYNC, DispatcherType.ERROR, DispatcherType.REQUEST);
@@ -104,13 +104,18 @@ public class AccessLogConfig {
         configurator.setContext(context);
         configurator.doConfigure(ResourceUtils.getURL("classpath:logback-access-spring.xml"));
         context.start();
-        return factory -> factory.addEngineValves(new AccessLogValve() {
+        return factory -> factory.addEngineValves(new AbstractAccessLogValve() {
             @Override
             public void log(Request request, Response response, long time) {
                 ServerAdapter adapter = serverAdapter(request, response);
                 AccessEvent event = accessEvent(request, response, adapter);
                 event.setThreadName(Thread.currentThread().getName());
                 context.callAppenders(event);
+            }
+
+            @Override
+            protected void log(CharArrayWriter message) {
+                //noting
             }
         });
     }

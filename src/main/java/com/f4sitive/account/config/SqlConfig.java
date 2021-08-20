@@ -12,8 +12,6 @@ import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.annotation.Order;
-import org.springframework.jdbc.datasource.LazyConnectionDataSourceProxy;
 
 import javax.sql.DataSource;
 
@@ -61,7 +59,7 @@ public class SqlConfig {
                     return ProxyDataSourceBuilder
                             .create((DataSource) bean)
                             .proxyResultSet()
-                            .traceMethodsWhen(() -> log.isTraceEnabled(), (message) -> log.trace(message))
+                            .traceMethodsWhen(log::isTraceEnabled, log::trace)
                             .afterQuery((execInfo, queryInfoList) -> {
                                 long elapsedTime = execInfo.getElapsedTime();
                                 boolean success = execInfo.isSuccess();

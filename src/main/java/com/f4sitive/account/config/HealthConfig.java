@@ -27,8 +27,8 @@ public class HealthConfig {
     Health health(String health) {
         this.health = Stream.of("true", "on", "yes", "1", "t", "y", "o", "enable").anyMatch(health::equalsIgnoreCase) ? Health.up().build() : Health.down().build();
         this.serviceRegistry
-                .map(serviceRegistry -> (ServiceRegistry<Registration>) serviceRegistry)
-                .<Consumer<Registration>>map(serviceRegistry -> Status.UP.equals(this.health.getStatus()) ? serviceRegistry::register : serviceRegistry::deregister)
+                .map(ServiceRegistry.class::cast)
+                .<Consumer<Registration>>map(sr -> Status.UP.equals(this.health.getStatus()) ? sr::register : sr::deregister)
                 .ifPresent(this.registration::ifPresent);
         return this.health;
     }
