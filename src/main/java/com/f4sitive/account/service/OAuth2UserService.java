@@ -3,6 +3,8 @@ package com.f4sitive.account.service;
 import com.f4sitive.account.model.UserDetail;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.RequestEntity;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -48,7 +50,7 @@ public class OAuth2UserService extends DelegatingOAuth2UserService {
     private static List<org.springframework.security.oauth2.client.userinfo.OAuth2UserService> userServices(RestTemplateBuilder restTemplateBuilder) {
         ParameterizedTypeReference<Map<String, Object>> parameterizedTypeReference = new ParameterizedTypeReference<Map<String, Object>>() {
         };
-        OAuth2UserRequestEntityConverter requestEntityConverter = new OAuth2UserRequestEntityConverter();
+        OAuth2UserRequestEntityConverter requestEntityConverter = oauth2UserRequestEntityConverter();
         RestTemplate restTemplate = restTemplateBuilder.errorHandler(new OAuth2ErrorResponseErrorHandler()).build();
         List<org.springframework.security.oauth2.client.userinfo.OAuth2UserService> userServices = new ArrayList<>();
         userServices.add(new DefaultOAuth2UserService() {
@@ -87,13 +89,23 @@ public class OAuth2UserService extends DelegatingOAuth2UserService {
         return userServices;
     }
 
+    private static OAuth2UserRequestEntityConverter oauth2UserRequestEntityConverter() {
+        return new OAuth2UserRequestEntityConverter() {
+            @Override
+            public RequestEntity<?> convert(OAuth2UserRequest userRequest) {
+                RequestEntity<?> convert = super.convert(userRequest);
+                return new RequestEntity<>(convert.getBody(), HttpHeaders.writableHttpHeaders(convert.getHeaders()), convert.getMethod(), convert.getUrl());
+            }
+        };
+    }
+
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
         return Optional.ofNullable(super.loadUser(userRequest))
                 .map(loadUser -> {
-                    String name = "";
                     String registrationId = userRequest.getClientRegistration().getRegistrationId();
+                    String name = JsonMapFlattener.flattenToStringMap(loadUser.getAttributes()).get("name");
                     UserDetail userDetail = new UserDetail();
                     userDetail.setUsername(loadUser.getName());
                     userDetail.setRegistrationId(registrationId);

@@ -1,7 +1,7 @@
 package com.f4sitive.account.entity;
 
-import com.f4sitive.account.util.Snowflakes;
 import com.f4sitive.account.entity.listener.UserEntityListener;
+import com.f4sitive.account.util.Snowflakes;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -10,7 +10,6 @@ import lombok.ToString;
 import org.hibernate.annotations.DynamicInsert;
 import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.GenericGenerator;
-import org.hibernate.envers.Audited;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
@@ -71,7 +70,6 @@ public class User implements Auditable<String, String, Instant>, Serializable {
     @Column(name = "registration_id", length = 100)
     private String registrationId;
 
-    @Audited
     @ToString.Include
     @Column(length = 200)
     private String name;

@@ -1,11 +1,12 @@
 package com.f4sitive.account.service;
 
-import com.f4sitive.account.repository.AuthorizedClientRepository;
 import com.f4sitive.account.entity.AuthorizedClient;
-import com.f4sitive.account.repository.UserRepository;
+import com.f4sitive.account.repository.AuthorizedClientRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.web.client.RestTemplateBuilder;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpInputMessage;
+import org.springframework.http.RequestEntity;
 import org.springframework.http.converter.FormHttpMessageConverter;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
@@ -23,6 +24,8 @@ import org.springframework.security.oauth2.client.OAuth2AuthorizedClientManager;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientProvider;
 import org.springframework.security.oauth2.client.RefreshTokenOAuth2AuthorizedClientProvider;
 import org.springframework.security.oauth2.client.endpoint.DefaultRefreshTokenTokenResponseClient;
+import org.springframework.security.oauth2.client.endpoint.OAuth2RefreshTokenGrantRequest;
+import org.springframework.security.oauth2.client.endpoint.OAuth2RefreshTokenGrantRequestEntityConverter;
 import org.springframework.security.oauth2.client.http.OAuth2ErrorResponseErrorHandler;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
@@ -58,19 +61,16 @@ public class AuthorizedClientService extends JdbcOAuth2AuthorizedClientService i
     private final OAuth2AuthorizedClientManager authorizedClientManager;
     private final AuthorizedClientRepository authorizedClientRepository;
     private final ClientRegistrationRepository registrationRepository;
-    private final UserRepository userRepository;
 
     public AuthorizedClientService(JdbcOperations jdbcOperations,
                                    ClientRegistrationRepository registrationRepository,
                                    OAuth2UserService userService,
                                    RestTemplateBuilder restTemplateBuilder,
                                    MappingJackson2HttpMessageConverter mappingJackson2HttpMessageConverter,
-                                   AuthorizedClientRepository authorizedClientRepository,
-                                   UserRepository userRepository) {
+                                   AuthorizedClientRepository authorizedClientRepository) {
         super(jdbcOperations, registrationRepository, new DefaultLobHandler());
         this.authorizedClientRepository = authorizedClientRepository;
         this.registrationRepository = registrationRepository;
-        this.userRepository = userRepository;
         RestTemplate restTemplate = restTemplateBuilder
                 .errorHandler(new OAuth2ErrorResponseErrorHandler())
                 .messageConverters(new FormHttpMessageConverter(), new OAuth2AccessTokenResponseHttpMessageConverter() {
@@ -91,6 +91,7 @@ public class AuthorizedClientService extends JdbcOAuth2AuthorizedClientService i
 
         DefaultRefreshTokenTokenResponseClient refreshTokenTokenResponseClient = new DefaultRefreshTokenTokenResponseClient();
         refreshTokenTokenResponseClient.setRestOperations(restTemplate);
+        refreshTokenTokenResponseClient.setRequestEntityConverter(oauth2RefreshTokenGrantRequestEntityConverter());
 
         RefreshTokenOAuth2AuthorizedClientProvider refreshTokenOAuth2AuthorizedClientProvider = new RefreshTokenOAuth2AuthorizedClientProvider();
         refreshTokenOAuth2AuthorizedClientProvider.setAccessTokenResponseClient(refreshTokenTokenResponseClient);
@@ -154,6 +155,16 @@ public class AuthorizedClientService extends JdbcOAuth2AuthorizedClientService i
             saveAuthorizedClient(authorizedClient, authentication);
         });
         this.authorizedClientManager = authorizedClientManager;
+    }
+
+    OAuth2RefreshTokenGrantRequestEntityConverter oauth2RefreshTokenGrantRequestEntityConverter() {
+        return new OAuth2RefreshTokenGrantRequestEntityConverter() {
+            @Override
+            public RequestEntity<?> convert(OAuth2RefreshTokenGrantRequest refreshTokenGrantRequest) {
+                RequestEntity<?> convert = super.convert(refreshTokenGrantRequest);
+                return new RequestEntity<>(convert.getBody(), HttpHeaders.writableHttpHeaders(convert.getHeaders()), convert.getMethod(), convert.getUrl());
+            }
+        };
     }
 
     public OAuth2AuthorizedClient authorize(String clientRegistrationId, String userId, Map<String, Object> attributes) {

@@ -5,7 +5,9 @@ import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.RequestEntity;
 import org.springframework.http.converter.FormHttpMessageConverter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -16,6 +18,7 @@ import org.springframework.security.oauth2.client.authentication.OAuth2Authentic
 import org.springframework.security.oauth2.client.endpoint.DefaultAuthorizationCodeTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
+import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequestEntityConverter;
 import org.springframework.security.oauth2.client.http.OAuth2ErrorResponseErrorHandler;
 import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
@@ -137,6 +140,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                                 .ifPresent(device_info -> additionalParametersConsumer.put("device_info", device_info));
                         break;
                     case "microsoft":
+                    case "kakao":
                         additionalParametersConsumer.put("prompt", ServletRequestUtils.getStringParameter(request, "prompt", "login"));
                         break;
                     case "google":
@@ -188,6 +192,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .build();
         DefaultAuthorizationCodeTokenResponseClient defaultAuthorizationCodeTokenResponseClient = new DefaultAuthorizationCodeTokenResponseClient();
         defaultAuthorizationCodeTokenResponseClient.setRestOperations(restTemplate);
+        defaultAuthorizationCodeTokenResponseClient.setRequestEntityConverter(oauth2AuthorizationCodeGrantRequestEntityConverter());
         return authorizationGrantRequest -> {
             OAuth2AccessTokenResponse tokenResponse = defaultAuthorizationCodeTokenResponseClient.getTokenResponse(authorizationGrantRequest);
             Map<String, Object> additionalParameters = new LinkedHashMap<>(tokenResponse.getAdditionalParameters());
@@ -196,6 +201,16 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             return OAuth2AccessTokenResponse.withResponse(tokenResponse)
                     .additionalParameters(additionalParameters)
                     .build();
+        };
+    }
+
+    OAuth2AuthorizationCodeGrantRequestEntityConverter oauth2AuthorizationCodeGrantRequestEntityConverter() {
+        return new OAuth2AuthorizationCodeGrantRequestEntityConverter() {
+            @Override
+            public RequestEntity<?> convert(OAuth2AuthorizationCodeGrantRequest authorizationCodeGrantRequest) {
+                RequestEntity<?> convert = super.convert(authorizationCodeGrantRequest);
+                return new RequestEntity<>(convert.getBody(), HttpHeaders.writableHttpHeaders(convert.getHeaders()), convert.getMethod(), convert.getUrl());
+            }
         };
     }
 

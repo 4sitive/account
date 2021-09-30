@@ -72,7 +72,7 @@ import java.util.stream.Collectors;
 @ConfigurationProperties("authorization-server-security")
 public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdapter {
     @Setter
-    private String key = UUID.randomUUID().toString();
+    private String key;
     @Setter
     private String issuer;
     @Setter
@@ -166,36 +166,31 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
                         .issuer(providerSettings.getIssuer())
                         .authorizationEndpoint(UriComponentsBuilder.fromUriString(providerSettings.getIssuer()).path(providerSettings.getAuthorizationEndpoint()).toUriString())
                         .tokenEndpoint(UriComponentsBuilder.fromUriString(providerSettings.getIssuer()).path(providerSettings.getTokenEndpoint()).toUriString())
-                        .tokenEndpointAuthenticationMethods((authenticationMethods) -> {
-                            authenticationMethods.addAll(registeredClient
-                                    .map(RegisteredClient::getClientAuthenticationMethods)
-                                    .map(clientAuthenticationMethods -> clientAuthenticationMethods.stream().map(ClientAuthenticationMethod::getValue).collect(Collectors.toList()))
-                                    .orElseGet(() -> Arrays.asList(ClientAuthenticationMethod.CLIENT_SECRET_BASIC.getValue(), ClientAuthenticationMethod.CLIENT_SECRET_POST.getValue())));
-                        })
+                        .tokenEndpointAuthenticationMethods(authenticationMethods -> registeredClient
+                                .map(RegisteredClient::getClientAuthenticationMethods)
+                                .map(clientAuthenticationMethods -> clientAuthenticationMethods.stream().map(ClientAuthenticationMethod::getValue).collect(Collectors.toList()))
+                                .orElseGet(() -> Arrays.asList(ClientAuthenticationMethod.CLIENT_SECRET_BASIC.getValue(), ClientAuthenticationMethod.CLIENT_SECRET_POST.getValue()))
+                                .forEach(authenticationMethods::add))
                         .jwkSetUrl(UriComponentsBuilder.fromUriString(providerSettings.getIssuer()).path(providerSettings.getJwkSetEndpoint()).toUriString())
-                        .responseType(OAuth2AuthorizationResponseType.CODE.getValue())
-                        .grantTypes(grantTypes -> {
-                            grantTypes.addAll(registeredClient
-                                    .map(RegisteredClient::getAuthorizationGrantTypes)
-                                    .map(authorizationGrantTypes -> authorizationGrantTypes.stream().map(AuthorizationGrantType::getValue).collect(Collectors.toList()))
-                                    .orElseGet(() -> Arrays.asList(AuthorizationGrantType.AUTHORIZATION_CODE.getValue(), AuthorizationGrantType.CLIENT_CREDENTIALS.getValue(), AuthorizationGrantType.REFRESH_TOKEN.getValue())));
-                        })
+                        .responseTypes(responseTypes -> responseTypes.add(OAuth2AuthorizationResponseType.CODE.getValue()))
+                        .grantTypes(grantTypes -> registeredClient
+                                .map(RegisteredClient::getAuthorizationGrantTypes)
+                                .map(authorizationGrantTypes -> authorizationGrantTypes.stream().map(AuthorizationGrantType::getValue).collect(Collectors.toList()))
+                                .orElseGet(() -> Arrays.asList(AuthorizationGrantType.AUTHORIZATION_CODE.getValue(), AuthorizationGrantType.CLIENT_CREDENTIALS.getValue(), AuthorizationGrantType.REFRESH_TOKEN.getValue()))
+                                .forEach(grantTypes::add))
                         .tokenRevocationEndpoint(UriComponentsBuilder.fromUriString(providerSettings.getIssuer()).path(providerSettings.getTokenRevocationEndpoint()).toUriString())
-                        .tokenRevocationEndpointAuthenticationMethods((authenticationMethods) -> {
-                            authenticationMethods.addAll(registeredClient
-                                    .map(RegisteredClient::getClientAuthenticationMethods)
-                                    .map(clientAuthenticationMethods -> clientAuthenticationMethods.stream().map(ClientAuthenticationMethod::getValue).collect(Collectors.toList()))
-                                    .orElseGet(() -> Arrays.asList(ClientAuthenticationMethod.CLIENT_SECRET_BASIC.getValue(), ClientAuthenticationMethod.CLIENT_SECRET_POST.getValue())));
-                        })
+                        .tokenRevocationEndpointAuthenticationMethods(authenticationMethods -> registeredClient
+                                .map(RegisteredClient::getClientAuthenticationMethods)
+                                .map(clientAuthenticationMethods -> clientAuthenticationMethods.stream().map(ClientAuthenticationMethod::getValue).collect(Collectors.toList()))
+                                .orElseGet(() -> Arrays.asList(ClientAuthenticationMethod.CLIENT_SECRET_BASIC.getValue(), ClientAuthenticationMethod.CLIENT_SECRET_POST.getValue()))
+                                .forEach(authenticationMethods::add))
                         .tokenIntrospectionEndpoint(UriComponentsBuilder.fromUriString(providerSettings.getIssuer()).path(providerSettings.getTokenIntrospectionEndpoint()).toUriString())
-                        .tokenIntrospectionEndpointAuthenticationMethods((authenticationMethods) -> {
-                            authenticationMethods.addAll(registeredClient
-                                    .map(RegisteredClient::getClientAuthenticationMethods)
-                                    .map(clientAuthenticationMethods -> clientAuthenticationMethods.stream().map(ClientAuthenticationMethod::getValue).collect(Collectors.toList()))
-                                    .orElseGet(() -> Arrays.asList(ClientAuthenticationMethod.CLIENT_SECRET_BASIC.getValue(), ClientAuthenticationMethod.CLIENT_SECRET_POST.getValue())));
-                        })
-                        .codeChallengeMethod("plain")
-                        .codeChallengeMethod("S256")
+                        .tokenIntrospectionEndpointAuthenticationMethods(authenticationMethods -> registeredClient
+                                .map(RegisteredClient::getClientAuthenticationMethods)
+                                .map(clientAuthenticationMethods -> clientAuthenticationMethods.stream().map(ClientAuthenticationMethod::getValue).collect(Collectors.toList()))
+                                .orElseGet(() -> Arrays.asList(ClientAuthenticationMethod.CLIENT_SECRET_BASIC.getValue(), ClientAuthenticationMethod.CLIENT_SECRET_POST.getValue()))
+                                .forEach(authenticationMethods::add))
+                        .codeChallengeMethods(codeChallengeMethods -> codeChallengeMethods.add("plain"))
                         .claims(claims -> {
                             Optional.ofNullable(opPolicyUri).ifPresent(value -> claims.put("op_policy_uri", value));
                             Optional.ofNullable(opTosUri).ifPresent(value -> claims.put("op_tos_uri", value));
@@ -208,7 +203,7 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
 
     @Bean
     public JWKSource<SecurityContext> jwkSource() {
-        JWKSet jwkSet = new JWKSet(new OctetSequenceKey.Builder(key.getBytes()).keyID("enc").build());
+        JWKSet jwkSet = new JWKSet(new OctetSequenceKey.Builder(Optional.ofNullable(key).orElseGet(() -> UUID.randomUUID().toString()).getBytes()).keyID("enc").build());
         return (jwkSelector, securityContext) -> jwkSelector.select(jwkSet);
     }
 
