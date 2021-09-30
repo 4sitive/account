@@ -1,12 +1,10 @@
 package com.f4sitive.account.config;
 
-import com.nimbusds.jose.jwk.JWK;
+import com.f4sitive.account.util.Snowflakes;
 import com.nimbusds.jose.jwk.JWKSet;
 import com.nimbusds.jose.jwk.OctetSequenceKey;
-import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
-import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -37,6 +35,11 @@ import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwsEncoder;
 import org.springframework.security.oauth2.server.authorization.JwtEncodingContext;
 import org.springframework.security.oauth2.server.authorization.OAuth2TokenCustomizer;
+import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeAuthenticationProvider;
+import org.springframework.security.oauth2.server.authorization.authentication.OAuth2AuthorizationCodeRequestAuthenticationProvider;
+import org.springframework.security.oauth2.server.authorization.authentication.OAuth2RefreshTokenAuthenticationProvider;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClient;
+import org.springframework.security.oauth2.server.authorization.client.RegisteredClientRepository;
 import org.springframework.security.oauth2.server.authorization.config.ProviderSettings;
 import org.springframework.security.oauth2.server.authorization.web.OAuth2AuthorizationEndpointFilter;
 import org.springframework.security.oauth2.server.authorization.web.OAuth2AuthorizationServerMetadataEndpointFilter;
@@ -57,75 +60,85 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.Arrays;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Configuration(proxyBeanMethods = false)
 @Order(Ordered.HIGHEST_PRECEDENCE)
 @ConfigurationProperties("authorization-server-security")
 public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdapter {
-    private final ClientRegistrationRepository clientRegistrationRepository;
-    @Getter
     @Setter
     private String key = UUID.randomUUID().toString();
-    @Getter
     @Setter
-    private RSAPrivateKey privateKey;
-    @Getter
+    private String issuer;
     @Setter
-    private RSAPublicKey publicKey;
-
-    public AuthorizationServerSecurityConfig(ClientRegistrationRepository clientRegistrationRepository) {
-        this.clientRegistrationRepository = clientRegistrationRepository;
-    }
+    private String opPolicyUri;
+    @Setter
+    private String opTosUri;
+    @Setter
+    private String registrationHint;
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
+        OAuth2AuthorizationServerConfigurer<HttpSecurity> authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer<>();
+        authorizationServerConfigurer.addObjectPostProcessor(new ObjectPostProcessor<Object>() {
+            @Override
+            public Object postProcess(Object object) {
+                Snowflakes snowflakes = getApplicationContext().getBean(Snowflakes.class);
+                if (object instanceof OAuth2AuthorizationCodeRequestAuthenticationProvider) {
+                    ((OAuth2AuthorizationCodeRequestAuthenticationProvider) object).setAuthorizationCodeGenerator(() -> Snowflakes.uuid(snowflakes.generate()).toString());
+                }
+                if (object instanceof OAuth2AuthorizationCodeAuthenticationProvider) {
+                    ((OAuth2AuthorizationCodeAuthenticationProvider) object).setRefreshTokenGenerator(() -> Snowflakes.uuid(snowflakes.generate()).toString());
+                }
+                if (object instanceof OAuth2RefreshTokenAuthenticationProvider) {
+                    ((OAuth2RefreshTokenAuthenticationProvider) object).setRefreshTokenGenerator(() -> Snowflakes.uuid(snowflakes.generate()).toString());
+                }
+                if (object instanceof OAuth2AuthorizationEndpointFilter) {
+                    Field field = ReflectionUtils.findField(OAuth2AuthorizationEndpointFilter.class, "redirectStrategy");
+                    ReflectionUtils.makeAccessible(field);
+                    ReflectionUtils.setField(field, object, new DefaultRedirectStrategy() {
+                        @Override
+                        public void sendRedirect(HttpServletRequest request, HttpServletResponse response, String url) throws IOException {
+                            Optional.ofNullable(request.getSession(false)).ifPresent(HttpSession::invalidate);
+                            SecurityContextHolder.getContext().setAuthentication(null);
+                            SecurityContextHolder.clearContext();
+                            super.sendRedirect(request, response, url);
+                        }
+                    });
+                }
+                if (object instanceof OAuth2AuthorizationServerMetadataEndpointFilter) {
+                    return oauth2AuthorizationServerMetadataEndpointFilter();
+                }
+                return object;
+            }
+        });
         http
                 .formLogin(customizer -> customizer.addObjectPostProcessor(new ObjectPostProcessor<Object>() {
                     @Override
                     public Object postProcess(Object object) {
+                        ClientRegistrationRepository clientRegistrationRepository = getApplicationContext().getBean(ClientRegistrationRepository.class);
                         if (object instanceof LoginUrlAuthenticationEntryPoint) {
                             String loginFormUrl = ((LoginUrlAuthenticationEntryPoint) object).getLoginFormUrl();
                             return new LoginUrlAuthenticationEntryPoint(loginFormUrl) {
                                 @Override
                                 protected String determineUrlToUseForThisRequest(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) {
-                                    String queryString = StringUtils.hasText(request.getQueryString()) ? "?" + request.getQueryString() : "";
-                                    String registration_hint = ServletRequestUtils.getStringParameter(request, "registration_hint", null);
-                                    return Optional.ofNullable(registration_hint)
+                                    return Optional.ofNullable(ServletRequestUtils.getStringParameter(request, "registration_hint", registrationHint))
                                             .filter(StringUtils::hasText)
                                             .map(registrationId -> clientRegistrationRepository.findByRegistrationId(registrationId.toLowerCase()))
-                                            .map(registration -> OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI + "/" + registration.getRegistrationId() + queryString)
+                                            .map(registration -> OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI + "/" + registration.getRegistrationId() + Optional.ofNullable(request.getQueryString()).filter(StringUtils::hasText).map("?"::concat).orElse(""))
                                             .orElseGet(() -> super.determineUrlToUseForThisRequest(request, response, exception));
                                 }
                             };
                         }
                         return object;
                     }
-                }));
-        OAuth2AuthorizationServerConfigurer<HttpSecurity> authorizationServerConfigurer = new OAuth2AuthorizationServerConfigurer<>();
-//        authorizationServerConfigurer.con
-//        authorizationServerConfigurer.authorizationEndpoint(c -> c.)
-        authorizationServerConfigurer.addObjectPostProcessor(new ObjectPostProcessor<Object>() {
-            @Override
-            public Object postProcess(Object object) {
-                if (object instanceof OAuth2AuthorizationEndpointFilter) {
-                    return oAuth2AuthorizationEndpointFilter((OAuth2AuthorizationEndpointFilter) object);
-                }
-                if (object instanceof OAuth2AuthorizationServerMetadataEndpointFilter) {
-                    return oAuth2AuthorizationServerMetadataEndpointFilter((OAuth2AuthorizationServerMetadataEndpointFilter) object);
-                }
-                return object;
-            }
-        });
-        http
-                .requestMatcher(authorizationServerConfigurer.getEndpointsMatcher())
+                }))
+                .requestMatcher(request -> authorizationServerConfigurer.getEndpointsMatcher().matches(request) || new AntPathRequestMatcher("/.well-known/oauth-authorization-server/*", HttpMethod.GET.name()).matches(request))
                 .authorizeRequests(authorizeRequests ->
                         authorizeRequests.anyRequest().authenticated()
                 )
@@ -133,80 +146,69 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
                 .apply(authorizationServerConfigurer);
     }
 
-    OAuth2AuthorizationEndpointFilter oAuth2AuthorizationEndpointFilter(OAuth2AuthorizationEndpointFilter object) {
-        Field field = ReflectionUtils.findField(OAuth2AuthorizationEndpointFilter.class, "redirectStrategy");
-        ReflectionUtils.makeAccessible(field);
-        ReflectionUtils.setField(field, object, new DefaultRedirectStrategy() {
-            @Override
-            public void sendRedirect(HttpServletRequest request, HttpServletResponse response, String url) throws IOException {
-                Optional.ofNullable(request.getSession(false)).ifPresent(HttpSession::invalidate);
-                SecurityContextHolder.getContext().setAuthentication(null);
-                SecurityContextHolder.clearContext();
-                super.sendRedirect(request, response, url);
-            }
-        });
-        return object;
-    }
-
-    OncePerRequestFilter oAuth2AuthorizationServerMetadataEndpointFilter(OAuth2AuthorizationServerMetadataEndpointFilter object) {
-        Field field = ReflectionUtils.findField(OAuth2AuthorizationServerMetadataEndpointFilter.class, "providerSettings");
-        ReflectionUtils.makeAccessible(field);
-        ProviderSettings providerSettings = (ProviderSettings) ReflectionUtils.getField(field, object);
+    OncePerRequestFilter oauth2AuthorizationServerMetadataEndpointFilter() {
+        ProviderSettings providerSettings = getApplicationContext().getBean(ProviderSettings.class);
+        RegisteredClientRepository clientRepository = getApplicationContext().getBean(RegisteredClientRepository.class);
         return new OncePerRequestFilter() {
-            private RequestMatcher requestMatcher = new AntPathRequestMatcher("/.well-known/oauth-authorization-server", HttpMethod.GET.name());
-            private OAuth2AuthorizationServerMetadataHttpMessageConverter authorizationServerMetadataHttpMessageConverter = new OAuth2AuthorizationServerMetadataHttpMessageConverter();
+            private final RequestMatcher requestMatcher = new AntPathRequestMatcher("/.well-known/oauth-authorization-server", HttpMethod.GET.name());
+            private final RequestMatcher requestMatcherClientId = new AntPathRequestMatcher("/.well-known/oauth-authorization-server/{clientId}", HttpMethod.GET.name());
+            private final OAuth2AuthorizationServerMetadataHttpMessageConverter authorizationServerMetadataHttpMessageConverter = new OAuth2AuthorizationServerMetadataHttpMessageConverter();
 
             @Override
             protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
-                if (!requestMatcher.matches(request)) {
+                if (!requestMatcher.matches(request) && !requestMatcherClientId.matches(request)) {
                     filterChain.doFilter(request, response);
                     return;
                 }
-                OAuth2AuthorizationServerMetadata authorizationServerMetadata = OAuth2AuthorizationServerMetadata.builder()
+                Optional<RegisteredClient> registeredClient = Optional.ofNullable(requestMatcherClientId.matcher(request).getVariables().get("clientId"))
+                        .map(clientRepository::findByClientId);
+                OAuth2AuthorizationServerMetadata.Builder builder = OAuth2AuthorizationServerMetadata.builder()
                         .issuer(providerSettings.getIssuer())
                         .authorizationEndpoint(UriComponentsBuilder.fromUriString(providerSettings.getIssuer()).path(providerSettings.getAuthorizationEndpoint()).toUriString())
                         .tokenEndpoint(UriComponentsBuilder.fromUriString(providerSettings.getIssuer()).path(providerSettings.getTokenEndpoint()).toUriString())
                         .tokenEndpointAuthenticationMethods((authenticationMethods) -> {
-                            authenticationMethods.add(ClientAuthenticationMethod.CLIENT_SECRET_BASIC.getValue());
-                            authenticationMethods.add(ClientAuthenticationMethod.CLIENT_SECRET_POST.getValue());
+                            authenticationMethods.addAll(registeredClient
+                                    .map(RegisteredClient::getClientAuthenticationMethods)
+                                    .map(clientAuthenticationMethods -> clientAuthenticationMethods.stream().map(ClientAuthenticationMethod::getValue).collect(Collectors.toList()))
+                                    .orElseGet(() -> Arrays.asList(ClientAuthenticationMethod.CLIENT_SECRET_BASIC.getValue(), ClientAuthenticationMethod.CLIENT_SECRET_POST.getValue())));
                         })
                         .jwkSetUrl(UriComponentsBuilder.fromUriString(providerSettings.getIssuer()).path(providerSettings.getJwkSetEndpoint()).toUriString())
                         .responseType(OAuth2AuthorizationResponseType.CODE.getValue())
-                        .grantType(AuthorizationGrantType.AUTHORIZATION_CODE.getValue())
-                        .grantType(AuthorizationGrantType.CLIENT_CREDENTIALS.getValue())
-                        .grantType(AuthorizationGrantType.REFRESH_TOKEN.getValue())
+                        .grantTypes(grantTypes -> {
+                            grantTypes.addAll(registeredClient
+                                    .map(RegisteredClient::getAuthorizationGrantTypes)
+                                    .map(authorizationGrantTypes -> authorizationGrantTypes.stream().map(AuthorizationGrantType::getValue).collect(Collectors.toList()))
+                                    .orElseGet(() -> Arrays.asList(AuthorizationGrantType.AUTHORIZATION_CODE.getValue(), AuthorizationGrantType.CLIENT_CREDENTIALS.getValue(), AuthorizationGrantType.REFRESH_TOKEN.getValue())));
+                        })
                         .tokenRevocationEndpoint(UriComponentsBuilder.fromUriString(providerSettings.getIssuer()).path(providerSettings.getTokenRevocationEndpoint()).toUriString())
                         .tokenRevocationEndpointAuthenticationMethods((authenticationMethods) -> {
-                            authenticationMethods.add(ClientAuthenticationMethod.CLIENT_SECRET_BASIC.getValue());
-                            authenticationMethods.add(ClientAuthenticationMethod.CLIENT_SECRET_POST.getValue());
+                            authenticationMethods.addAll(registeredClient
+                                    .map(RegisteredClient::getClientAuthenticationMethods)
+                                    .map(clientAuthenticationMethods -> clientAuthenticationMethods.stream().map(ClientAuthenticationMethod::getValue).collect(Collectors.toList()))
+                                    .orElseGet(() -> Arrays.asList(ClientAuthenticationMethod.CLIENT_SECRET_BASIC.getValue(), ClientAuthenticationMethod.CLIENT_SECRET_POST.getValue())));
                         })
                         .tokenIntrospectionEndpoint(UriComponentsBuilder.fromUriString(providerSettings.getIssuer()).path(providerSettings.getTokenIntrospectionEndpoint()).toUriString())
                         .tokenIntrospectionEndpointAuthenticationMethods((authenticationMethods) -> {
-                            authenticationMethods.add(ClientAuthenticationMethod.CLIENT_SECRET_BASIC.getValue());
-                            authenticationMethods.add(ClientAuthenticationMethod.CLIENT_SECRET_POST.getValue());
+                            authenticationMethods.addAll(registeredClient
+                                    .map(RegisteredClient::getClientAuthenticationMethods)
+                                    .map(clientAuthenticationMethods -> clientAuthenticationMethods.stream().map(ClientAuthenticationMethod::getValue).collect(Collectors.toList()))
+                                    .orElseGet(() -> Arrays.asList(ClientAuthenticationMethod.CLIENT_SECRET_BASIC.getValue(), ClientAuthenticationMethod.CLIENT_SECRET_POST.getValue())));
                         })
                         .codeChallengeMethod("plain")
                         .codeChallengeMethod("S256")
-                        .claim("op_policy_uri", "https://cdn.4sitive.com/policy.html")
-                        .claim("op_tos_uri", "https://cdn.4sitive.com/tos.html")
-                        .build();
+                        .claims(claims -> {
+                            Optional.ofNullable(opPolicyUri).ifPresent(value -> claims.put("op_policy_uri", value));
+                            Optional.ofNullable(opTosUri).ifPresent(value -> claims.put("op_tos_uri", value));
+                        });
                 ServletServerHttpResponse httpResponse = new ServletServerHttpResponse(response);
-                authorizationServerMetadataHttpMessageConverter.write(authorizationServerMetadata, MediaType.APPLICATION_JSON, httpResponse);
+                authorizationServerMetadataHttpMessageConverter.write(builder.build(), MediaType.APPLICATION_JSON, httpResponse);
             }
         };
     }
 
     @Bean
     public JWKSource<SecurityContext> jwkSource() {
-        List<JWK> keys = new ArrayList<>();
-        keys.add(new OctetSequenceKey.Builder(key.getBytes())
-                .keyID("enc")
-                .build());
-        Optional.ofNullable(publicKey)
-                .map(RSAKey.Builder::new)
-                .map(builder -> Optional.ofNullable(privateKey).map(builder::privateKey).orElse(builder).keyID("sig").build())
-                .ifPresent(keys::add);
-        JWKSet jwkSet = new JWKSet(keys);
+        JWKSet jwkSet = new JWKSet(new OctetSequenceKey.Builder(key.getBytes()).keyID("enc").build());
         return (jwkSelector, securityContext) -> jwkSelector.select(jwkSet);
     }
 
@@ -218,7 +220,7 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
                 .tokenRevocationEndpoint("/oauth/revoke")
                 .tokenIntrospectionEndpoint("/oauth/introspect")
                 .jwkSetEndpoint("/oauth/jwks")
-                .issuer("https://account.4sitive.com")
+                .issuer(issuer)
                 .build();
     }
 
@@ -236,7 +238,7 @@ public class AuthorizationServerSecurityConfig extends WebSecurityConfigurerAdap
     public OAuth2TokenCustomizer<JwtEncodingContext> jwtCustomizer() {
         return context -> {
             context.getHeaders().algorithm(MacAlgorithm.HS256);
-            context.getClaims().claim("ext", Collections.singletonMap("usr", UUID.randomUUID().toString()));
+            context.getClaims().claim("ext", context.getAuthorization().<Map>getAttribute("ext"));
         };
     }
 }

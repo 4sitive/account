@@ -1,4 +1,4 @@
-package com.f4sitive.account.converter;
+package com.f4sitive.account.entity.converter;
 
 import org.springframework.util.StringUtils;
 

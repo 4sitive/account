@@ -1,188 +1,127 @@
-create table `revision_generator`
+create table "authorization_consent"
 (
-    `next_val` bigint
-) engine=InnoDB;
+    "client_id"          varchar(100)  not null,
+    "user_id"            varchar(36)   not null,
+    "authorities"        clob,
+    "created_by"         varchar(36),
+    "created_date"       timestamp,
+    "last_modified_by"   varchar(36),
+    "last_modified_date" timestamp,
+    "version"            int default 0 not null,
+    primary key ("user_id", "client_id")
+);
 
-insert into `revision_generator`
-values (1);
-
-create table `revision`
+create table "authorized_client"
 (
-    `id`           bigint not null,
-    `created_by`   varchar(36),
-    `created_date` datetime(6),
-    primary key (`id`)
-) engine=InnoDB;
+    "registration_id"         varchar(100)  not null,
+    "user_id"                 varchar(36)   not null,
+    "access_token"            clob,
+    "access_token_expires_at" timestamp,
+    "access_token_issued_at"  timestamp,
+    "access_token_scopes"     clob,
+    "attributes"              clob,
+    "created_by"              varchar(36),
+    "created_date"            timestamp,
+    "last_modified_by"        varchar(36),
+    "last_modified_date"      timestamp,
+    "name"                    varchar(200),
+    "refresh_token"           clob,
+    "refresh_token_issued_at" timestamp,
+    "version"                 int default 0 not null,
+    primary key ("user_id", "registration_id")
+);
 
-create table `revision_modified_entity`
+create table "client"
 (
-    `revision_id` bigint not null,
-    `name`        varchar(200)
-) engine=InnoDB;
+    "id"                            varchar(100)  not null,
+    "authorization_grant_types"     clob          not null,
+    "client_authentication_methods" clob          not null,
+    "client_id"                     varchar(100)  not null,
+    "client_id_issued_at"           timestamp     not null,
+    "client_name"                   varchar(200)  not null,
+    "client_secret"                 clob,
+    "client_secret_expires_at"      timestamp,
+    "client_settings"               clob,
+    "created_by"                    varchar(36),
+    "created_date"                  timestamp,
+    "last_modified_by"              varchar(36),
+    "last_modified_date"            timestamp,
+    "redirect_uris"                 clob,
+    "scopes"                        clob,
+    "token_settings"                clob,
+    "version"                       int default 0 not null,
+    primary key ("id")
+);
 
-create table `oauth2_authorization`
+alter table "client"
+    add constraint client_ux_client_id unique ("client_id");
+
+create table "device"
 (
-    `id`                            varchar(100)  not null,
-    `access_token_expires_at`       datetime(6),
-    `access_token_issued_at`        datetime(6),
-    `access_token_metadata`         longtext,
-    `access_token_scopes`           longtext,
-    `access_token_type`             varchar(100),
-    `access_token_value`            longblob,
-    `attributes`                    longtext,
-    `authorization_code_expires_at` datetime(6),
-    `authorization_code_issued_at`  datetime(6),
-    `authorization_code_metadata`   longtext,
-    `authorization_code_value`      longblob,
-    `authorization_grant_type`      varchar(100)  not null,
-    `created_by`                    varchar(36),
-    `created_date`                  datetime(6),
-    `last_modified_by`              varchar(36),
-    `last_modified_date`            datetime(6),
-    `oidc_id_token_expires_at`      datetime(6),
-    `oidc_id_token_issued_at`       datetime(6),
-    `oidc_id_token_metadata`        longtext,
-    `oidc_id_token_value`           longblob,
-    `refresh_token_expires_at`      datetime(6),
-    `refresh_token_issued_at`       datetime(6),
-    `refresh_token_metadata`        longtext,
-    `refresh_token_value`           longblob,
-    `state`                         varchar(500),
-    `version`                       int default 0 not null,
-    `registered_client_id`          varchar(100)  not null,
-    `principal_name`                varchar(36)   not null,
-    primary key (`id`)
-) engine=InnoDB;
+    "id"                            varchar(36)   not null,
+    "access_token"                  clob,
+    "access_token_expires_at"       timestamp,
+    "access_token_issued_at"        timestamp,
+    "access_token_metadata"         clob,
+    "access_token_scopes"           clob,
+    "attributes"                    clob,
+    "authorization_code"            varchar(50),
+    "authorization_code_expires_at" timestamp,
+    "authorization_code_issued_at"  timestamp,
+    "authorization_code_metadata"   clob,
+    "authorization_grant_type"      varchar(100)  not null,
+    "client_id"                     varchar(100)  not null,
+    "created_by"                    varchar(36),
+    "created_date"                  timestamp,
+    "external_serial_number"        varchar(100),
+    "last_modified_by"              varchar(36),
+    "last_modified_date"            timestamp,
+    "refresh_token"                 varchar(50),
+    "refresh_token_expires_at"      timestamp,
+    "refresh_token_issued_at"       timestamp,
+    "refresh_token_metadata"        clob,
+    "serial_number"                 varchar(100)  not null,
+    "state"                         varchar(50),
+    "user_id"                       varchar(36),
+    "version"                       int default 0 not null,
+    primary key ("id")
+);
+alter table "device"
+    add constraint device_ux_client_id_serial_number_user_id unique ("client_id", "serial_number", "user_id");
+alter table "device"
+    add constraint device_ux_authorization_code unique ("authorization_code");
+alter table "device"
+    add constraint device_ux_refresh_token unique ("refresh_token");
+alter table "device"
+    add constraint device_ux_state unique ("state");
 
-create table `oauth2_authorization_consent`
+create table "revision"
 (
-    `registered_client_id` varchar(100)  not null,
-    `principal_name`       varchar(36)   not null,
-    `authorities`          longtext,
-    `created_by`           varchar(36),
-    `created_date`         datetime(6),
-    `last_modified_by`     varchar(36),
-    `last_modified_date`   datetime(6),
-    `version`              int default 0 not null,
-    primary key (`registered_client_id`, `principal_name`)
-) engine=InnoDB;
+    "id"           bigint not null,
+    "created_by"   varchar(36),
+    "created_date" timestamp,
+    primary key ("id")
+);
 
-create table `oauth2_authorized_client`
+create table "revision_modified_entity"
 (
-    `client_registration_id`  varchar(100)  not null,
-    `principal_name`          varchar(36)   not null,
-    `access_token_expires_at` datetime(6),
-    `access_token_issued_at`  datetime(6),
-    `access_token_scopes`     longtext,
-    `access_token_type`       varchar(50),
-    `access_token_value`      longtext,
-    `created_by`              varchar(36),
-    `created_date`            datetime(6),
-    `last_modified_by`        varchar(36),
-    `last_modified_date`      datetime(6),
-    `refresh_token_issued_at` datetime(6),
-    `refresh_token_value`     longtext,
-    `version`                 int default 0 not null,
-    primary key (`client_registration_id`, `principal_name`)
-) engine=InnoDB;
+    "revision_id" bigint not null,
+    "name"        varchar(200)
+);
 
-create table `oauth2_client_registration`
+create table "user"
 (
-    `id`                 varchar(100)  not null,
-    `created_by`         varchar(36),
-    `created_date`       datetime(6),
-    `last_modified_by`   varchar(36),
-    `last_modified_date` datetime(6),
-    `version`            int default 0 not null,
-    primary key (`id`)
-) engine=InnoDB;
-
-create table `oauth2_registered_client`
-(
-    `id`                            varchar(100)  not null,
-    `authorization_grant_types`     longtext      not null,
-    `client_authentication_methods` longtext      not null,
-    `client_id`                     varchar(100)  not null,
-    `client_id_issued_at`           datetime(6) not null,
-    `client_name`                   varchar(200)  not null,
-    `client_secret`                 longtext,
-    `client_secret_expires_at`      datetime(6),
-    `client_settings`               longtext      not null,
-    `created_by`                    varchar(36),
-    `created_date`                  datetime(6),
-    `last_modified_by`              varchar(36),
-    `last_modified_date`            datetime(6),
-    `redirect_uris`                 longtext,
-    `scopes`                        longtext,
-    `token_settings`                longtext      not null,
-    `version`                       int default 0 not null,
-    primary key (`id`)
-) engine=InnoDB;
-
-alter table `oauth2_registered_client`
-    add constraint registered_client_ux_client_id unique (`client_id`);
-
-create table `user`
-(
-    `id`                  varchar(36)   not null,
-    `account_expired`     bit           not null,
-    `account_locked`      bit           not null,
-    `created_by`          varchar(36),
-    `created_date`        datetime(6),
-    `credentials_expired` bit           not null,
-    `disabled`            bit           not null,
-    `email`               varchar(255),
-    `image`               varchar(255),
-    `introduce`           longtext,
-    `last_modified_by`    varchar(36),
-    `last_modified_date`  datetime(6),
-    `name`                varchar(200),
-    `password`            longtext,
-    `username`            varchar(200)  not null,
-    `version`             int default 0 not null,
-    primary key (`id`)
-) engine=InnoDB;
-
-alter table `user`
-    add constraint user_ux_username unique (`username`);
-
-create table `user_authority`
-(
-    `user_id` varchar(36) not null,
-    `name`    varchar(200)
-) engine=InnoDB;
-
-create table `group`
-(
-    `id`                 varchar(36)   not null,
-    `created_by`         varchar(36),
-    `created_date`       datetime(6),
-    `last_modified_by`   varchar(36),
-    `last_modified_date` datetime(6),
-    `name`               varchar(200)  not null,
-    `version`            int default 0 not null,
-    primary key (`id`)
-) engine=InnoDB;
-
-alter table `group`
-    add constraint group_ux_name unique (`name`);
-
-create table `group_authority`
-(
-    `group_id` varchar(36) not null,
-    `name`     varchar(200)
-) engine=InnoDB;
-
-create table `group_member`
-(
-    `group_id` varchar(36) not null,
-    `user_id`  varchar(36) not null,
-    primary key (`group_id`, `user_id`)
-) engine=InnoDB;
-
-
--- create table "revision_generator" (
---     "next_val" bigint
--- );
--- insert into "revision_generator"
--- values (100);
+    "id"                 varchar(36)   not null,
+    "created_by"         varchar(36),
+    "created_date"       timestamp,
+    "last_modified_by"   varchar(36),
+    "last_modified_date" timestamp,
+    "name"               varchar(200),
+    "registration_id"    varchar(100),
+    "username"           varchar(100)  not null,
+    "version"            int default 0 not null,
+    "parent_id"          varchar(36),
+    primary key ("id")
+);
+alter table "user"
+    add constraint user_ux_username_registration_id unique ("username", "registration_id");

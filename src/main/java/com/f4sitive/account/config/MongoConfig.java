@@ -13,8 +13,7 @@ import java.util.concurrent.TimeUnit;
 
 @EnableMongoAuditing
 @Configuration(proxyBeanMethods = false)
-public class MongoConfig {
-
+class MongoConfig {
     @Bean
     MongoClientSettingsBuilderCustomizer mongoClientSettingsBuilderCustomizer() {
         return clientSettingsBuilder -> clientSettingsBuilder

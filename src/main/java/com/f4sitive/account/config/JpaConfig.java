@@ -10,7 +10,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 @Configuration(proxyBeanMethods = false)
 public class JpaConfig {
     @Bean
-    HibernatePropertiesCustomizer hibernatePropertiesCustomizer(Snowflakes snowflakes){
+    HibernatePropertiesCustomizer hibernatePropertiesCustomizer(Snowflakes snowflakes) {
         return hibernateProperties -> hibernateProperties.put("snowflakes", snowflakes);
     }
 }

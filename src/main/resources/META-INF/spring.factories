@@ -1,1 +1,2 @@
-org.springframework.boot.actuate.autoconfigure.web.ManagementContextConfiguration=com.f4sitive.account.config.AccessLogConfig
+org.springframework.boot.actuate.autoconfigure.web.ManagementContextConfiguration=\
+com.f4sitive.account.config.AccessLogConfig

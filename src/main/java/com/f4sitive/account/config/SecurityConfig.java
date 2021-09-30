@@ -1,63 +1,48 @@
 package com.f4sitive.account.config;
 
-import com.f4sitive.account.entity.User;
-import com.f4sitive.account.service.AuthorizedClientService;
-import com.f4sitive.account.service.UserService;
-import com.fasterxml.jackson.databind.JsonNode;
-import org.apache.http.client.HttpClient;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
-import org.springframework.boot.actuate.endpoint.annotation.Endpoint;
+import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.convert.converter.Converter;
 import org.springframework.http.HttpMethod;
-import org.springframework.http.RequestEntity;
-import org.springframework.http.ResponseEntity;
-import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;
 import org.springframework.http.converter.FormHttpMessageConverter;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.annotation.web.builders.WebSecurity;
 import org.springframework.security.config.annotation.web.configuration.WebSecurityConfigurerAdapter;
-import org.springframework.security.config.annotation.web.configuration.WebSecurityCustomizer;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.security.core.authority.AuthorityUtils;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClient;
-import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.client.endpoint.DefaultAuthorizationCodeTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AccessTokenResponseClient;
 import org.springframework.security.oauth2.client.endpoint.OAuth2AuthorizationCodeGrantRequest;
 import org.springframework.security.oauth2.client.http.OAuth2ErrorResponseErrorHandler;
-import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
-import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequestEntityConverter;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserService;
-import org.springframework.security.oauth2.client.web.AuthenticatedPrincipalOAuth2AuthorizedClientRepository;
-import org.springframework.security.oauth2.client.web.OAuth2AuthorizedClientRepository;
+import org.springframework.security.oauth2.client.web.DefaultOAuth2AuthorizationRequestResolver;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestRedirectFilter;
+import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
 import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
-import org.springframework.security.oauth2.core.OAuth2Error;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenResponse;
+import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.oauth2.core.http.converter.OAuth2AccessTokenResponseHttpMessageConverter;
-import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.oauth2.server.authorization.config.ProviderSettings;
+import org.springframework.security.provisioning.UserDetailsManager;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
+import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationFailureHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.security.web.savedrequest.CookieRequestCache;
 import org.springframework.security.web.savedrequest.RequestCache;
 import org.springframework.security.web.savedrequest.SavedRequest;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
-import org.springframework.security.web.util.matcher.AnyRequestMatcher;
-import org.springframework.security.web.util.matcher.NegatedRequestMatcher;
 import org.springframework.security.web.util.matcher.OrRequestMatcher;
-import org.springframework.util.Assert;
 import org.springframework.util.StringUtils;
-import org.springframework.web.client.RestClientException;
+import org.springframework.web.bind.ServletRequestUtils;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.context.support.WebApplicationContextUtils;
 import org.springframework.web.util.UriComponentsBuilder;
 
@@ -65,51 +50,40 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.*;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Optional;
 
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
-//    private final AuthorizedClientService authorizedClientService;
-//
-//    public SecurityConfig(AuthorizedClientService authorizedClientService) {
-//        this.authorizedClientService = authorizedClientService;
-//    }
-
-    //    @Bean
-    OAuth2AuthorizedClientRepository authorizedClientRepository(OAuth2AuthorizedClientService authorizedClientService) {
-        AuthenticatedPrincipalOAuth2AuthorizedClientRepository authorizedClientRepository = new AuthenticatedPrincipalOAuth2AuthorizedClientRepository(authorizedClientService);
-        authorizedClientRepository.setAnonymousAuthorizedClientRepository(new OAuth2AuthorizedClientRepository() {
-            @Override
-            public <T extends OAuth2AuthorizedClient> T loadAuthorizedClient(String clientRegistrationId, Authentication principal, HttpServletRequest request) {
-                return null;
-            }
-
-            @Override
-            public void saveAuthorizedClient(OAuth2AuthorizedClient authorizedClient, Authentication principal, HttpServletRequest request, HttpServletResponse response) {
-            }
-
-            @Override
-            public void removeAuthorizedClient(String clientRegistrationId, Authentication principal, HttpServletRequest request, HttpServletResponse response) {
-            }
-        });
-        return authorizedClientRepository;
-    }
-
     @Override
     protected void configure(HttpSecurity http) throws Exception {
-        SimpleUrlAuthenticationSuccessHandler successHandler = new SimpleUrlAuthenticationSuccessHandler() {
-            @Override
-            protected String determineTargetUrl(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
-                if (authentication instanceof OAuth2AuthenticationToken) {
-                    String registrationId = ((OAuth2AuthenticationToken) authentication).getAuthorizedClientRegistrationId();
-                    return "/login/oauth2/success/" + registrationId;
-                }
-                return super.determineTargetUrl(request, response, authentication);
-            }
-        };
-        SimpleUrlAuthenticationFailureHandler failureHandler = new SimpleUrlAuthenticationFailureHandler() {
+        http
+                .requestMatcher(request -> !EndpointRequest.toAnyEndpoint().matches(request) && !PathRequest.toStaticResources().atCommonLocations().matches(request))
+                .authorizeRequests(customizer -> customizer
+                        .requestMatchers(request -> !request.isSecure() && (new AntPathRequestMatcher("/internal/**").matches(request) || new AntPathRequestMatcher("/swagger-ui/**").matches(request) || new AntPathRequestMatcher("/swagger-resources/**").matches(request) || new AntPathRequestMatcher("/v*/api-docs").matches(request))).permitAll()
+                        .anyRequest().authenticated()
+                )
+                .oauth2Login(customizer -> customizer
+                        .successHandler(successHandler())
+                        .failureHandler(failureHandler())
+                        .authorizationEndpoint(authorizationEndpointConfig -> authorizationEndpointConfig
+                                .authorizationRequestResolver(authorizationRequestResolver()))
+                        .tokenEndpoint(tokenEndpointConfig -> tokenEndpointConfig
+                                .accessTokenResponseClient(accessTokenResponseClient()))
+                        .userInfoEndpoint(userInfoEndpointConfig -> userInfoEndpointConfig
+                                .oidcUserService(getApplicationContext().getBean(OAuth2UserService.class))
+                                .userService(getApplicationContext().getBean(OAuth2UserService.class)))
+                )
+                .oauth2Client(Customizer.withDefaults());
+    }
+
+    AuthenticationFailureHandler failureHandler() {
+        return new SimpleUrlAuthenticationFailureHandler() {
             @Override
             public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws IOException, ServletException {
+                logger.error(exception);
                 String redirectUrl = Optional.ofNullable(WebApplicationContextUtils.getRequiredWebApplicationContext(request.getServletContext()).getBean(RequestCache.class).getRequest(request, response))
                         .map(SavedRequest::getRedirectUrl)
                         .map(url -> {
@@ -130,83 +104,90 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 }
             }
         };
-//Endpoint
-//        new NegatedRequestMatcher(EndpointRequest.toAnyEndpoint())
-//        new AntPathRequestMatcher("/oauth2/authorization/*", null, false),
-//                new AntPathRequestMatcher("/login", null, false),
-//                new AntPathRequestMatcher(OAuth2LoginAuthenticationFilter.DEFAULT_FILTER_PROCESSES_URI + ".code", null, false),
-        http
-                .requestMatcher(new NegatedRequestMatcher(EndpointRequest.toAnyEndpoint()))
-                .authorizeRequests(requests -> requests.anyRequest().authenticated())
-                .oauth2Login(customizer -> customizer
-                        .successHandler(successHandler)
-                        .failureHandler(failureHandler)
-                        .tokenEndpoint(tokenEndpointConfig -> tokenEndpointConfig
-                                .accessTokenResponseClient(accessTokenResponseClient(getApplicationContext().getBean(HttpClient.class)))
-                        )
-                        .userInfoEndpoint(userInfoEndpointConfig -> userInfoEndpointConfig
-                                .userService(userService(getApplicationContext().getBean(HttpClient.class))))
-                )
-                .oauth2Client(Customizer.withDefaults());
     }
 
-    public WebSecurityCustomizer ss() {
-        return new WebSecurityCustomizer() {
-            @Override
-            public void customize(WebSecurity web) {
-//                web.
-            }
-        };
-    }
+    OAuth2AuthorizationRequestResolver authorizationRequestResolver() {
+        RequestCache requestCache = getApplicationContext().getBean(RequestCache.class);
+        UserDetailsManager userDetailsManager = getApplicationContext().getBean(UserDetailsManager.class);
 
-    private OAuth2UserService<OAuth2UserRequest, OAuth2User> userService(HttpClient httpClient) {
-        RestTemplate restTemplate = new RestTemplateBuilder()
-                .requestFactory(() -> new HttpComponentsClientHttpRequestFactory(httpClient))
-                .errorHandler(new OAuth2ErrorResponseErrorHandler())
-                .build();
-        Converter<OAuth2UserRequest, RequestEntity<?>> requestEntityConverter = new OAuth2UserRequestEntityConverter();
-        UserService userService = getApplicationContext().getBean(UserService.class);
-//        DefaultOAuth2UserService userService = new DefaultOAuth2UserService();
-//        userService.setRestOperations(restTemplate);
-//        return userService;
-        return userRequest -> {
-            Assert.notNull(userRequest, "userRequest cannot be null");
-//            userRequest.get
-            String registrationId = userRequest.getClientRegistration().getRegistrationId();
-            RequestEntity<?> request = requestEntityConverter.convert(userRequest);
-            Map<String, Object> attributes = new LinkedHashMap<>();
-            String userNameAttributeName = userRequest.getClientRegistration().getProviderDetails().getUserInfoEndpoint().getUserNameAttributeName();
-            try {
-                ResponseEntity<JsonNode> response = restTemplate.exchange(request, JsonNode.class);
-                JsonNode body = response.getBody();
+        DefaultOAuth2AuthorizationRequestResolver defaultOAuth2AuthorizationRequestResolver = new DefaultOAuth2AuthorizationRequestResolver(getApplicationContext().getBean(ClientRegistrationRepository.class), OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI);
+        defaultOAuth2AuthorizationRequestResolver.setAuthorizationRequestCustomizer(customizer -> {
+            HttpServletRequest request = ((ServletRequestAttributes) RequestContextHolder.currentRequestAttributes()).getRequest();
+            OAuth2AuthorizationRequest authorizationRequest = customizer.build();
+            String registrationId = authorizationRequest.getAttribute(OAuth2ParameterNames.REGISTRATION_ID);
+            customizer.additionalParameters(additionalParametersConsumer -> {
                 switch (registrationId) {
-                    case "naver":
-                        attributes.put("id", body.with("response").get(userNameAttributeName).asText());
+                    case "tid":
+                        String prompt = ServletRequestUtils.getStringParameter(request, "prompt", "login");
+                        if ("mypage".equals(prompt)) {
+                            additionalParametersConsumer.put("login_hint", UriComponentsBuilder.fromHttpUrl("")
+                                    .queryParam("login_id", Optional.ofNullable(request.getHeader("User-Id"))
+                                            .filter(userId -> userDetailsManager.userExists(userId))
+                                            .orElse(""))
+                                    .toUriString());
+                        }
+                        additionalParametersConsumer.put("prompt", prompt);
+                        additionalParametersConsumer.put("acr_values", ServletRequestUtils.getStringParameter(request, "acr_values", "login"));
+                        additionalParametersConsumer.put("display", ServletRequestUtils.getStringParameter(request, "display", "page"));
+                        Optional.ofNullable(ServletRequestUtils.getStringParameter(request, "response_mode", null))
+                                .ifPresent(response_mode -> additionalParametersConsumer.put("response_mode", response_mode));
+                        Optional.ofNullable(ServletRequestUtils.getStringParameter(request, "login_hint", null))
+                                .ifPresent(login_hint -> additionalParametersConsumer.put("login_hint", login_hint));
+                        Optional.ofNullable(ServletRequestUtils.getStringParameter(request, "device_info", null))
+                                .ifPresent(device_info -> additionalParametersConsumer.put("device_info", device_info));
                         break;
-                    default:
-                        attributes.put("id", body.get(userNameAttributeName).asText());
+                    case "microsoft":
+                        additionalParametersConsumer.put("prompt", ServletRequestUtils.getStringParameter(request, "prompt", "login"));
+                        break;
+                    case "google":
+                        additionalParametersConsumer.put("approval_prompt", ServletRequestUtils.getStringParameter(request, "approval_prompt", "force"));
+                        additionalParametersConsumer.put("access_type", ServletRequestUtils.getStringParameter(request, "access_type", "offline"));
                         break;
                 }
-            } catch (RestClientException ex) {
-                OAuth2Error oauth2Error = new OAuth2Error("invalid_user_info_response", "An error occurred while attempting to retrieve the UserInfo Resource: " + ex.getMessage(), null);
-                throw new OAuth2AuthenticationException(oauth2Error, oauth2Error.toString(), ex);
+            });
+            customizer.attributes(attributesConsumer -> {
+                Optional.ofNullable(request.getHeader("User-Id")).ifPresent(userId -> attributesConsumer.put("username", userId));
+                switch (registrationId) {
+                    case "tid":
+                        String redirectUrl = Optional.ofNullable(requestCache.getRequest(request, null))
+                                .map(SavedRequest::getRedirectUrl)
+                                .map(UriComponentsBuilder::fromUriString)
+                                .map(builder -> builder
+                                        .replaceQueryParam("access_token", Collections.emptySet())
+                                        .build(false)
+                                        .toUriString())
+                                .orElseGet(() -> ServletRequestUtils.getStringParameter(request, "url", null));
+                        attributesConsumer.put("url", redirectUrl);
+                        break;
+                    default:
+                        attributesConsumer.put("url", ServletRequestUtils.getStringParameter(request, "url", null));
+                        break;
+                }
+            });
+        });
+        return defaultOAuth2AuthorizationRequestResolver;
+    }
+
+    AuthenticationSuccessHandler successHandler() {
+        return new SimpleUrlAuthenticationSuccessHandler() {
+            @Override
+            protected String determineTargetUrl(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
+                if (authentication instanceof OAuth2AuthenticationToken) {
+                    String registrationId = ((OAuth2AuthenticationToken) authentication).getAuthorizedClientRegistrationId();
+                    return "/login/oauth2/success/" + registrationId;
+                }
+                return super.determineTargetUrl(request, response, authentication);
             }
-            attributes.putAll(userRequest.getAdditionalParameters());
-            String id = Optional.ofNullable((String) userRequest.getAdditionalParameters().get("username"))
-                    .orElseGet(() -> registrationId + "_" + attributes.get("id"));
-            return new DefaultOAuth2User(AuthorityUtils.NO_AUTHORITIES, Collections.singletonMap("id", userService.findUserIdByUsername(id)), "id");
         };
     }
 
-    private OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> accessTokenResponseClient(HttpClient httpClient) {
-        RestTemplate restTemplate = new RestTemplateBuilder()
-                .requestFactory(() -> new HttpComponentsClientHttpRequestFactory(httpClient))
+    OAuth2AccessTokenResponseClient<OAuth2AuthorizationCodeGrantRequest> accessTokenResponseClient() {
+        RestTemplate restTemplate = getApplicationContext().getBean(RestTemplateBuilder.class)
                 .messageConverters(new FormHttpMessageConverter(), new OAuth2AccessTokenResponseHttpMessageConverter())
                 .errorHandler(new OAuth2ErrorResponseErrorHandler())
                 .build();
         DefaultAuthorizationCodeTokenResponseClient defaultAuthorizationCodeTokenResponseClient = new DefaultAuthorizationCodeTokenResponseClient();
         defaultAuthorizationCodeTokenResponseClient.setRestOperations(restTemplate);
-//        defaultAuthorizationCodeTokenResponseClient.setRequestEntityConverter(oAuth2AuthorizationCodeGrantRequestEntityConverter());
         return authorizationGrantRequest -> {
             OAuth2AccessTokenResponse tokenResponse = defaultAuthorizationCodeTokenResponseClient.getTokenResponse(authorizationGrantRequest);
             Map<String, Object> additionalParameters = new LinkedHashMap<>(tokenResponse.getAdditionalParameters());

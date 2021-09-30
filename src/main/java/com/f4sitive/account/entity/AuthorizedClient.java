@@ -1,6 +1,8 @@
 package com.f4sitive.account.entity;
 
-import com.f4sitive.account.converter.SetToCommaDelimitedStringConverter;
+import com.f4sitive.account.entity.converter.JsonNodeToStringConverter;
+import com.f4sitive.account.entity.converter.SetToCommaDelimitedStringConverter;
+import com.fasterxml.jackson.databind.JsonNode;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -17,24 +19,19 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import javax.persistence.Basic;
 import javax.persistence.Column;
-import javax.persistence.ConstraintMode;
 import javax.persistence.Convert;
 import javax.persistence.Embeddable;
 import javax.persistence.EmbeddedId;
 import javax.persistence.Entity;
 import javax.persistence.EntityListeners;
-import javax.persistence.FetchType;
-import javax.persistence.ForeignKey;
 import javax.persistence.Index;
-import javax.persistence.JoinColumn;
 import javax.persistence.Lob;
-import javax.persistence.ManyToOne;
 import javax.persistence.Table;
-import javax.persistence.UniqueConstraint;
 import javax.persistence.Version;
 import java.io.Serializable;
 import java.time.Instant;
 import java.util.LinkedHashSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -43,37 +40,33 @@ import java.util.Set;
 @EntityListeners(AuditingEntityListener.class)
 @Getter
 @Setter
-@Entity
 @NoArgsConstructor
-@Table(
-        name = "oauth2_authorized_client",
-        indexes = @Index(name = "authorized_client_ix_principal_name", columnList = "principal_name"),
-        uniqueConstraints = @UniqueConstraint(name = "authorized_client_ux_client_registration_id_principal_name", columnNames = {"client_registration_id", "principal_name"})
-)
+@ToString(callSuper = false, onlyExplicitlyIncluded = true)
+@EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
+@Entity
+@Table(name = "authorized_client",
+        indexes = @Index(name = "authorized_client_ix_user_id", columnList = "user_id"))
 public class AuthorizedClient implements Auditable<String, AuthorizedClient.ID, Instant>, Serializable {
     private static final long serialVersionUID = 1L;
     @EmbeddedId
-    private AuthorizedClient.ID id = new AuthorizedClient.ID();
+    @ToString.Include
+    @EqualsAndHashCode.Include
+    private ID id = new ID();
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(insertable = false, updatable = false, foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
-    private ClientRegistration clientRegistration;
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "principal_name", insertable = false, updatable = false, foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
-    private User user;
-
-    @Column(length = 50)
-    private String accessTokenType;
+    @ToString.Include
     private Instant accessTokenExpiresAt;
 
     @Lob
     @Basic
-    private String accessTokenValue;
+    @ToString.Include
+    private String accessToken;
+    @ToString.Include
     private Instant accessTokenIssuedAt;
+
     @Lob
     @Basic
-    private String refreshTokenValue;
+    @ToString.Include
+    private String refreshToken;
     private Instant refreshTokenIssuedAt;
 
     @Convert(converter = SetToCommaDelimitedStringConverter.class)
@@ -81,30 +74,53 @@ public class AuthorizedClient implements Auditable<String, AuthorizedClient.ID, 
     @Basic
     private Set<String> accessTokenScopes = new LinkedHashSet<>();
 
+    @ToString.Include
+    @Column(length = 200)
+    private String name;
+
+    @Convert(converter = JsonNodeToStringConverter.class)
+    @Lob
+    @Basic
+    private JsonNode attributes;
+
+    public void setAttributes(Map<String, Object> attributes) {
+        this.attributes = Optional.ofNullable(attributes).filter(map -> !map.isEmpty()).map(map -> Constants.OBJECT_MAPPER.convertValue(map, JsonNode.class)).orElse(null);
+    }
+
+    public AuthorizedClient(ID id) {
+        this.id = id;
+    }
+
     @Getter
-    @Setter
+    @NoArgsConstructor
     @ToString(callSuper = false, onlyExplicitlyIncluded = true)
     @EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
     @Embeddable
     public static class ID implements Serializable {
         private static final long serialVersionUID = 1L;
-        @ToString.Include
-        @Column(name = "client_registration_id", length = ClientRegistration.ID_LENGTH)
-        private String clientRegistrationId;
 
         @ToString.Include
-        @Column(name = "principal_name", length = User.ID_LENGTH)
+        @Column(name = "user_id", length = Constants.ID_LENGTH)
         private String userId;
+
+        @ToString.Include
+        @Column(name = "registration_id", length = 100)
+        private String registrationId;
+
+        public ID(String userId, String registrationId) {
+            this.userId = userId;
+            this.registrationId = registrationId;
+        }
     }
 
     @Version
     @Column(nullable = false, columnDefinition = "int default 0")
     private int version;
     @CreatedBy
-    @Column(length = User.ID_LENGTH)
+    @Column(length = Constants.ID_LENGTH)
     private String createdBy;
     @LastModifiedBy
-    @Column(length = User.ID_LENGTH)
+    @Column(length = Constants.ID_LENGTH)
     private String lastModifiedBy;
     @CreatedDate
     private Instant createdDate;

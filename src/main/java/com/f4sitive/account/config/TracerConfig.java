@@ -1,6 +1,11 @@
 package com.f4sitive.account.config;
 
-import brave.baggage.*;
+import brave.baggage.BaggageField;
+import brave.baggage.BaggageFields;
+import brave.baggage.BaggagePropagationConfig;
+import brave.baggage.BaggagePropagationCustomizer;
+import brave.baggage.CorrelationScopeConfig;
+import brave.baggage.CorrelationScopeCustomizer;
 import ch.qos.logback.classic.ClassicConstants;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.cloud.sleuth.Span;

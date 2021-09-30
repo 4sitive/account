@@ -1,97 +1,111 @@
 package com.f4sitive.account.entity;
 
+import com.f4sitive.account.util.Snowflakes;
 import com.f4sitive.account.entity.listener.UserEntityListener;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import lombok.ToString;
+import org.hibernate.annotations.DynamicInsert;
+import org.hibernate.annotations.DynamicUpdate;
 import org.hibernate.annotations.GenericGenerator;
+import org.hibernate.envers.Audited;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedBy;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.domain.Auditable;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
-import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.security.core.userdetails.UserDetails;
 
-import javax.persistence.*;
+import javax.persistence.Column;
+import javax.persistence.ConstraintMode;
+import javax.persistence.Entity;
+import javax.persistence.EntityListeners;
+import javax.persistence.FetchType;
+import javax.persistence.ForeignKey;
+import javax.persistence.GeneratedValue;
+import javax.persistence.Id;
+import javax.persistence.Index;
+import javax.persistence.JoinColumn;
+import javax.persistence.ManyToOne;
+import javax.persistence.Table;
+import javax.persistence.UniqueConstraint;
+import javax.persistence.Version;
 import java.io.Serializable;
 import java.time.Instant;
-import java.util.LinkedHashSet;
 import java.util.Optional;
-import java.util.Set;
 
+@DynamicInsert
+@DynamicUpdate
 @EntityListeners(value = {AuditingEntityListener.class, UserEntityListener.class})
 @Getter
 @Setter
-@Entity
+@ToString(callSuper = false, onlyExplicitlyIncluded = true)
+@EqualsAndHashCode(callSuper = false, onlyExplicitlyIncluded = true)
 @NoArgsConstructor
+@Entity
 @Document
-@Table(name = "user", uniqueConstraints = @UniqueConstraint(name = "user_ux_username", columnNames = {"username"}))
+@Table(name = "user",
+        indexes = @Index(name = "user_ix_parent_id", columnList = "parent_id"),
+        uniqueConstraints = @UniqueConstraint(name = "user_ux_username_registration_id", columnNames = {"username", "registration_id"}))
 public class User implements Auditable<String, String, Instant>, Serializable {
     private static final long serialVersionUID = 1L;
-    public static final int ID_LENGTH = 36;
+
+    @ToString.Include
     @Id
     @org.springframework.data.annotation.Id
-    @GeneratedValue(strategy = GenerationType.TABLE, generator = "user_identifier_generator")
-    @GenericGenerator(name = "user_identifier_generator", strategy = "com.f4sitive.account.entity.generator.UserIdentifierGenerator")
-    @Column(length = User.ID_LENGTH)
+    @GeneratedValue(generator = Constants.SNOWFLAKE_IDENTIFIER_GENERATOR)
+    @GenericGenerator(name = Constants.SNOWFLAKE_IDENTIFIER_GENERATOR, strategy = Constants.SNOWFLAKE_IDENTIFIER_GENERATOR_STRATEGY)
+    @Column(length = Constants.ID_LENGTH)
     private String id;
 
-    @Indexed(unique = true)
-    @Column(length = 200, nullable = false)
+    @ToString.Include
+    @EqualsAndHashCode.Include
+    @Column(length = 100, nullable = false)
     private String username;
-    @Lob
-    @Basic
-    private String password;
-    private boolean accountExpired;
-    private boolean accountLocked;
-    private boolean credentialsExpired;
-    private boolean disabled;
+
+    @ToString.Include
+    @EqualsAndHashCode.Include
+    @Column(name = "registration_id", length = 100)
+    private String registrationId;
+
+    @Audited
+    @ToString.Include
     @Column(length = 200)
     private String name;
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @JoinTable(name = "user_authority", joinColumns = @JoinColumn(foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)))
-    @Column(name = "name", length = 200)
-    private Set<String> authority = new LinkedHashSet<>();
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "parent_id", foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT))
+    private User parent;
 
-    private String email;
+    public User(String id) {
+        this.id = id;
+    }
 
-    @ManyToMany(cascade = CascadeType.ALL)
-    @JoinTable(name = "group_member",
-            joinColumns = @JoinColumn(foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)),
-            inverseJoinColumns = @JoinColumn(foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)),
-            foreignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT),
-            inverseForeignKey = @ForeignKey(value = ConstraintMode.NO_CONSTRAINT)
-    )
-    private Set<Group> group = new LinkedHashSet<>();
+    public User(String username, String registrationId) {
+        this.username = username;
+        this.registrationId = registrationId;
+    }
+
+    public String id(Snowflakes snowflakes) {
+        return Constants.id(snowflakes);
+    }
 
     @Version
     @Column(nullable = false, columnDefinition = "int default 0")
     private int version;
     @CreatedBy
-    @Column(length = User.ID_LENGTH)
+    @Column(length = Constants.ID_LENGTH)
     private String createdBy;
     @LastModifiedBy
-    @Column(length = User.ID_LENGTH)
+    @Column(length = Constants.ID_LENGTH)
     private String lastModifiedBy;
     @CreatedDate
     private Instant createdDate;
     @LastModifiedDate
     private Instant lastModifiedDate;
-
-    public static User of(UserDetails userDetails) {
-        User user = new User();
-        user.setUsername(userDetails.getUsername());
-        user.setPassword(userDetails.getPassword());
-        user.setDisabled(!userDetails.isEnabled());
-        user.setCredentialsExpired(!userDetails.isCredentialsNonExpired());
-        user.setAccountExpired(!userDetails.isAccountNonExpired());
-        user.setAccountLocked(!userDetails.isAccountNonLocked());
-        return user;
-    }
 
     @Override
     public Optional<String> getCreatedBy() {

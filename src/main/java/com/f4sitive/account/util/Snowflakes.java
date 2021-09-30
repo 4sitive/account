@@ -49,7 +49,7 @@ public class Snowflakes {
     public static UUID uuid(long id) {
         long timestamp = (timestamp(id) - GREGORIAN_EPOCH) * 10000;
         long msb = (0x00000000ffffffffL & timestamp) << 32 | (0x0000ffff00000000L & timestamp) >>> 16 | (0xffff000000000000L & timestamp) >>> 48 | 0x0000000000001000L;
-        long lsb = 0x8000000000000000L | (sequence(id) & 0x0000000000003fffL) << 48 | instance(id) | 0x0000010000000000L | (Integer.toUnsignedLong(Long.toString(id, Character.MAX_RADIX).hashCode()) * 63 & 0x0000003fbfffffffL) << 10;
+        long lsb = 0x8000000000000000L | (sequence(id) & 0x0000000000003fffL) << 48 | instance(id) | 0x0000010000000000L | (UUID.nameUUIDFromBytes(Long.toUnsignedString(id, Character.MAX_RADIX).getBytes()).getMostSignificantBits() & 0x0000003fbfffffffL) << 10;
         return new UUID(msb, lsb);
     }
 

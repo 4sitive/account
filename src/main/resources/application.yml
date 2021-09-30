@@ -11,7 +11,7 @@ spring:
         provider:
           'google':
             user-info-authentication-method: header
-            authorization-uri: https://accounts.google.com/o/oauth2/auth?approval_prompt=force&access_type=offline
+            authorization-uri: https://accounts.google.com/o/oauth2/auth
             token-uri: https://www.googleapis.com/oauth2/v4/token
             user-info-uri: https://www.googleapis.com/oauth2/v1/userinfo
             user-name-attribute: id
@@ -73,12 +73,11 @@ spring:
     import: optional:classpath:security.yml
   jpa:
     properties:
-      instance: ${spring.application.index:${spring.cloud.client.ip-address:${random.long[1,1023]}}}
-      test: '#{snowflakes}'
+      hibernate.id.new_generator_mappings: false
       hibernate.globally_quoted_identifiers: true
       hibernate.globally_quoted_identifiers_skip_column_definitions: true
+      org.hibernate.envers.global_with_modified_flag: true
     hibernate:
-      use-new-id-generator-mappings: false
       ddl-auto: update
   datasource:
     hikari:
@@ -89,16 +88,22 @@ spring:
       pool:
         max-wait: 1S
         min-idle: 1
-  sql:
-    init:
-      continue-on-error: true
-      mode: always
   data:
     mongodb:
       repositories:
         type: none
+  session:
+    store-type: none
+  cache:
+    cache-names:
+      - CAFFEINE_TOKEN
 server:
+  port: 8080
   forward-headers-strategy: framework
+  tomcat:
+    remoteip:
+      internal-proxies: .*
+      remote-ip-header: X-Forwarded-For
 #openssl rsa -in private.pem -pubout -out public.pem
 
 logging:
@@ -114,3 +119,16 @@ management:
       exposure:
         include: "*"
       base-path: /
+  metrics:
+    tags:
+      application: ${spring.application.name}
+  endpoint:
+    health:
+      show-details: always
+    logfile:
+      external-file: ${logging.file.name}.service.log
+
+authorization-server-security:
+  issuer: 'https://account.4sitive.com'
+  op-policy-uri: 'https://cdn.4sitive.com/policy.html'
+  op-tos-uri: 'https://cdn.4sitive.com/tos.html'
