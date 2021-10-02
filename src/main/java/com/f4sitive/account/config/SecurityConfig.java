@@ -1,7 +1,9 @@
 package com.f4sitive.account.config;
 
+import lombok.Setter;
 import org.springframework.boot.actuate.autoconfigure.security.servlet.EndpointRequest;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,7 +32,12 @@ import org.springframework.security.oauth2.core.endpoint.OAuth2AccessTokenRespon
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.oauth2.core.endpoint.OAuth2ParameterNames;
 import org.springframework.security.oauth2.core.http.converter.OAuth2AccessTokenResponseHttpMessageConverter;
+import org.springframework.security.oauth2.jwt.JwtClaimAccessor;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.server.authorization.config.ProviderSettings;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenResolver;
+import org.springframework.security.oauth2.server.resource.web.DefaultBearerTokenResolver;
 import org.springframework.security.provisioning.UserDetailsManager;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -59,7 +66,11 @@ import java.util.Map;
 import java.util.Optional;
 
 @Configuration(proxyBeanMethods = false)
+@ConfigurationProperties("security")
 public class SecurityConfig extends WebSecurityConfigurerAdapter {
+    @Setter
+    private String realmName;
+
     @Override
     protected void configure(HttpSecurity http) throws Exception {
         http
@@ -79,6 +90,10 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                                 .oidcUserService(getApplicationContext().getBean(OAuth2UserService.class))
                                 .userService(getApplicationContext().getBean(OAuth2UserService.class)))
                 )
+//                .oauth2ResourceServer(customizer -> customizer
+//                        .authenticationEntryPoint(authenticationEntryPoint())
+//                        .bearerTokenResolver(bearerTokenResolver())
+//                        .jwt(Customizer.withDefaults()))
                 .oauth2Client(Customizer.withDefaults());
     }
 
@@ -86,7 +101,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         return new SimpleUrlAuthenticationFailureHandler() {
             @Override
             public void onAuthenticationFailure(HttpServletRequest request, HttpServletResponse response, AuthenticationException exception) throws IOException, ServletException {
-                logger.error(exception);
+                logger.error(exception.getMessage(), exception);
                 String redirectUrl = Optional.ofNullable(WebApplicationContextUtils.getRequiredWebApplicationContext(request.getServletContext()).getBean(RequestCache.class).getRequest(request, response))
                         .map(SavedRequest::getRedirectUrl)
                         .map(url -> {
@@ -112,6 +127,8 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
     OAuth2AuthorizationRequestResolver authorizationRequestResolver() {
         RequestCache requestCache = getApplicationContext().getBean(RequestCache.class);
         UserDetailsManager userDetailsManager = getApplicationContext().getBean(UserDetailsManager.class);
+        JwtDecoder jwtDecoder = getApplicationContext().getBean(JwtDecoder.class);
+        BearerTokenResolver bearerTokenResolver = bearerTokenResolver();
 
         DefaultOAuth2AuthorizationRequestResolver defaultOAuth2AuthorizationRequestResolver = new DefaultOAuth2AuthorizationRequestResolver(getApplicationContext().getBean(ClientRegistrationRepository.class), OAuth2AuthorizationRequestRedirectFilter.DEFAULT_AUTHORIZATION_REQUEST_BASE_URI);
         defaultOAuth2AuthorizationRequestResolver.setAuthorizationRequestCustomizer(customizer -> {
@@ -150,7 +167,18 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 }
             });
             customizer.attributes(attributesConsumer -> {
-                Optional.ofNullable(request.getHeader("User-Id")).ifPresent(userId -> attributesConsumer.put("username", userId));
+                String userId = Optional.ofNullable(bearerTokenResolver.resolve(request))
+                        .map(token -> {
+                            try {
+                                return jwtDecoder.decode(token);
+                            } catch (Exception e) {
+                                //ignore
+                            }
+                            return null;
+                        })
+                        .map(JwtClaimAccessor::getSubject)
+                        .orElse(null);
+                attributesConsumer.put("user_id", userId);
                 switch (registrationId) {
                     case "tid":
                         String redirectUrl = Optional.ofNullable(requestCache.getRequest(request, null))
@@ -170,6 +198,18 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
             });
         });
         return defaultOAuth2AuthorizationRequestResolver;
+    }
+
+    BearerTokenAuthenticationEntryPoint authenticationEntryPoint() {
+        BearerTokenAuthenticationEntryPoint authenticationEntryPoint = new BearerTokenAuthenticationEntryPoint();
+        authenticationEntryPoint.setRealmName(realmName);
+        return authenticationEntryPoint;
+    }
+
+    DefaultBearerTokenResolver bearerTokenResolver() {
+        DefaultBearerTokenResolver bearerTokenResolver = new DefaultBearerTokenResolver();
+        bearerTokenResolver.setAllowUriQueryParameter(true);
+        return bearerTokenResolver;
     }
 
     AuthenticationSuccessHandler successHandler() {
@@ -196,7 +236,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
         return authorizationGrantRequest -> {
             OAuth2AccessTokenResponse tokenResponse = defaultAuthorizationCodeTokenResponseClient.getTokenResponse(authorizationGrantRequest);
             Map<String, Object> additionalParameters = new LinkedHashMap<>(tokenResponse.getAdditionalParameters());
-            additionalParameters.put("username", authorizationGrantRequest.getAuthorizationExchange().getAuthorizationRequest().getAttributes().get("username"));
+            additionalParameters.put("user_id", authorizationGrantRequest.getAuthorizationExchange().getAuthorizationRequest().getAttributes().get("user_id"));
             additionalParameters.put("url", authorizationGrantRequest.getAuthorizationExchange().getAuthorizationRequest().getAttributes().get("url"));
             return OAuth2AccessTokenResponse.withResponse(tokenResponse)
                     .additionalParameters(additionalParameters)

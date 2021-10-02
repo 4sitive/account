@@ -28,7 +28,10 @@ public class UserService extends JdbcUserDetailsManager {
             String registrationId = ((UserDetail) userDetails).getRegistrationId();
             User user = userRepository.queryByUsernameAndRegistrationId(userDetails.getUsername(), registrationId)
                     .orElseGet(() -> new User(userDetails.getUsername(), registrationId));
-            Optional.ofNullable(((UserDetail) userDetails).getParentId()).map(User::new).ifPresent(user::setParent);
+            Optional.ofNullable(((UserDetail) userDetails).getParentId())
+                    .flatMap(userRepository::findById)
+                    .filter(parent -> !parent.equals(user))
+                    .ifPresent(user::setParent);
             String userId = userRepository.save(user).getId();
             ((UserDetail) userDetails).setId(userId);
         }

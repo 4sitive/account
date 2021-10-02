@@ -138,12 +138,12 @@ public class Device implements Auditable<String, String, Instant>, Serializable 
     @Basic
     private JsonNode refreshTokenMetadata;
 
-    public String id(Snowflakes snowflakes) {
-        return Constants.id(snowflakes);
+    String id(Snowflakes snowflakes) {
+        return Constants.id(snowflakes.generate());
     }
 
     public String token() {
-        return Constants.uuid(id).toString().replaceAll("[-]", "").toUpperCase();
+        return id.replaceAll("[-]", "").toUpperCase();
     }
 
     public String serialNumber() {
@@ -182,9 +182,9 @@ public class Device implements Auditable<String, String, Instant>, Serializable 
         this.refreshTokenMetadata = Optional.ofNullable(refreshTokenMetadata).filter(map -> !map.isEmpty()).map(map -> Constants.OBJECT_MAPPER.convertValue(map, JsonNode.class)).orElse(null);
     }
 
-    @Version
-    @Column(nullable = false, columnDefinition = "int default 0")
-    private int version;
+//    @Version
+//    @Column(nullable = false, columnDefinition = "int default 0")
+//    private int version;
     @CreatedBy
     @Column(length = Constants.ID_LENGTH)
     private String createdBy;

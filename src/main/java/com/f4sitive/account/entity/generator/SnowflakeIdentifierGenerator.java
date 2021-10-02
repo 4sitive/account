@@ -40,5 +40,6 @@ public class SnowflakeIdentifierGenerator implements org.hibernate.id.Identifier
                 params.getProperty(PersistentIdentifierGenerator.PK),
                 Snowflakes.class
         );
+        ReflectionUtils.makeAccessible(method);
     }
 }

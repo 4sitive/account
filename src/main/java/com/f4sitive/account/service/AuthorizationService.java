@@ -130,10 +130,11 @@ public class AuthorizationService extends JdbcOAuth2AuthorizationService {
         deviceRepository.save(device);
         Optional.ofNullable(authorization.getAccessToken())
                 .ifPresent(accessToken -> {
+                    String token = device.token();
                     if (accessToken.isActive()) {
-                        cache.put(device.token(), token(device, registeredClient));
+                        cache.put(token, token(device, registeredClient));
                     } else {
-                        cache.evict(device.token());
+                        cache.evict(token);
                     }
                 });
     }

@@ -87,8 +87,8 @@ public class User implements Auditable<String, String, Instant>, Serializable {
         this.registrationId = registrationId;
     }
 
-    public String id(Snowflakes snowflakes) {
-        return Constants.id(snowflakes);
+    String id(Snowflakes snowflakes) {
+        return Constants.id(snowflakes.generate());
     }
 
     @Version
